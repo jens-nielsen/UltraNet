@@ -79,8 +79,8 @@ class DataConfig:
     d: int
 
 BurgersData = DataConfig(
-    pth="./datasets/burgers_data_uniform_R10.pt",
-    cheby_pth="./datasets/burgers_data_chebyshev_R10.pt",
+    pth="./datasets/burgers_neumann_uniform.pt",
+    cheby_pth="./datasets/burgers_neumann_chebyshev.pt",
     d=1,
 )
 DarcyData = DataConfig(
@@ -89,8 +89,8 @@ DarcyData = DataConfig(
     d=2,
 )
 HelmholtzData = DataConfig(
-    pth="./datasets/Helmholtz_10000_128.pt",
-    cheby_pth=None,
+    pth="./datasets/Helmholtz_uniform_128.pt",
+    cheby_pth="./datasets/Helmholtz_chebyshev_128.pt",
     d=2,
 )
 
@@ -127,13 +127,52 @@ def generate_grid(sizes: int | list[int], cheby: bool) -> torch.Tensor:
 
     return torch.stack(grids, dim=-1)
 
+def sample_at_2d_custom_grid(tensor_3d, custom_grid, mode="bicubic"):
+        """
+        Samples a (B, H, W) tensor at specific coordinates provided in custom_grid.
+
+        Args:
+            tensor_3d: Input data of shape (B, H_in, W_in)
+            custom_grid: Coordinates of shape (1, H_out, W_out, 2)
+                         Values MUST be in range [-1, 1].
+                         Last dim is (x, y) where x is horizontal, y is vertical.
+            mode: 'bilinear', 'bicubic', or 'nearest'
+
+        Returns:
+            Sampled tensor of shape (B, H_out, W_out)
+        """
+        # 1. Ensure input is 4D: (B, 1, H_in, W_in)
+        x = tensor_3d.unsqueeze(1)
+
+        # 1.5 Add batch dimension to custom_grid: (B, H_out, W_out, 2)
+        custom_grid = custom_grid.expand(x.size(0), -1, -1, -1)
+
+        # 2. Apply grid_sample
+        # padding_mode='border' is usually best for physics to avoid zero-leaks at edges
+        sampled = torch.nn.functional.grid_sample(
+            x, custom_grid, mode=mode, padding_mode="border", align_corners=True
+        )
+
+        # 3. Return to 3D: (B, H_out, W_out)
+        return sampled.squeeze(1)
+
 class NeuralOperatorDataset:
-    def __init__(self, data: DataType, is_cheby: bool, ntrain: int, ntest: int, batch_size: int, subsample: int = 1):
+    def __init__(self, data: DataType, is_cheby: bool, ntrain: int, ntest: int, batch_size: int, normalize: bool, subsample: int):
         self.ntrain = ntrain
         self.ntest = ntest
         self.batch_size = batch_size
         self.chebyshev = is_cheby
         self.data_type = data
+        self.normalize = normalize
+
+
+        # reader = MatReader("./datasets/burgers_neumann.mat")
+        # a = reader.read_field("u0_cgl").permute(1, 0)
+        # u = reader.read_field("u1_cgl").permute(1, 0)
+        # a_train = a[:ntrain][..., ::subsample].unsqueeze(-1)
+        # u_train = u[:ntrain][..., ::subsample].unsqueeze(-1)
+        # a_test = a[-ntest:][..., ::subsample].unsqueeze(-1)
+        # u_test = u[-ntest:][..., ::subsample].unsqueeze(-1)
 
         self.cfg = data_config_map.get(data)
         self.d = self.cfg.d
@@ -147,14 +186,16 @@ class NeuralOperatorDataset:
         a_test = data['a'][-ntest:][:, *subsample_index]
         u_test = data['u'][-ntest:][:, *subsample_index]
 
-        # Normalize data
-        self.eps = 1e-7
-        self.a_mean, self.a_std = torch.mean(a_train, axis=0, keepdim=True), torch.std(a_train, axis=0, keepdim=True)
-        self.u_mean, self.u_std = torch.mean(u_train, axis=0, keepdim=True), torch.std(u_train, axis=0, keepdim=True)
-        a_train = (a_train - self.a_mean) / (self.a_std + self.eps)
-        u_train = (u_train - self.u_mean) / (self.u_std + self.eps)
-        a_test = (a_test - self.a_mean) / (self.a_std + self.eps)
-        u_test = (u_test - self.u_mean) / (self.u_std + self.eps)
+        # # Normalize data
+        if normalize:
+            print("Normalizing data...")
+            self.eps = 1e-7
+            self.a_mean, self.a_std = torch.mean(a_train, axis=0, keepdim=True), torch.std(a_train, axis=0, keepdim=True)
+            self.u_mean, self.u_std = torch.mean(u_train, axis=0, keepdim=True), torch.std(u_train, axis=0, keepdim=True)
+            a_train = (a_train - self.a_mean) / (self.a_std + self.eps)
+            u_train = (u_train - self.u_mean) / (self.u_std + self.eps)
+            a_test = (a_test - self.a_mean) / (self.a_std + self.eps)
+            u_test = (u_test - self.u_mean) / (self.u_std + self.eps)
 
         # Add positional encodings
         grid = generate_grid(a_train.shape[1:(1+self.cfg.d)], is_cheby)
@@ -163,14 +204,29 @@ class NeuralOperatorDataset:
         a_test = torch.cat([a_test, # Add final dimension
                             grid.expand(a_test.shape[0], *grid.shape)], dim=-1)
 
-        print(a_train.shape, u_train.shape, a_test.shape, u_test.shape)
-
         self.train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(a_train, u_train), batch_size=self.batch_size, shuffle=True)
         self.test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(a_test, u_test), batch_size=self.batch_size, shuffle=False)
 
-
-
 if __name__ == "__main__":
-    # Test the dataset class
-    data = NeuralOperatorDataset(DataType.DARCY, is_cheby=False, ntrain=1000, ntest=200, batch_size=32)
+    #  Test the dataset class
+    data = NeuralOperatorDataset(DataType.HELMHOLTZ, is_cheby=False, ntrain=1000, ntest=200, batch_size=32, normalize=True, subsample=1)
 
+    # reader = MatReader("./datasets/burgers_neumann.mat")
+    # a_cgl = reader.read_field("u0_cgl").permute(1, 0).unsqueeze(-1)
+    # u_cgl = reader.read_field("u1_cgl").permute(1, 0).unsqueeze(-1)
+    # a_unif = reader.read_field("u0_unif").permute(1, 0).unsqueeze(-1)
+    # u_unif = reader.read_field("u1_unif").permute(1, 0).unsqueeze(-1)
+
+    # print(a_cgl.shape, u_cgl.shape, a_unif.shape, u_unif.shape)
+
+    # cgl_dict = {"a": a_cgl,
+    #             "u": u_cgl}   
+    # unif_dict = {"a": a_unif,
+    #             "u": u_unif}   
+
+    # torch.save(cgl_dict, "./datasets/burgers_neumann_chebyshev.pt")
+    # torch.save(unif_dict, "./datasets/burgers_neumann_uniform.pt")
+
+
+
+    

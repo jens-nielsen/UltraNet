@@ -80,12 +80,6 @@ class FNO1d(nn.Module):
         self.conv1 = SpectralConv1d(self.width, self.width, self.modes1)
         self.conv2 = SpectralConv1d(self.width, self.width, self.modes1)
         self.conv3 = SpectralConv1d(self.width, self.width, self.modes1)
-        self.convs = [
-            self.conv0,
-            self.conv1,
-            self.conv2,
-            self.conv3,
-        ]  # For visualisaiton purposes
         self.w0 = nn.Conv1d(self.width, self.width, 1)
         self.w1 = nn.Conv1d(self.width, self.width, 1)
         self.w2 = nn.Conv1d(self.width, self.width, 1)

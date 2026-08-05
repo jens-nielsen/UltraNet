@@ -1,14 +1,13 @@
 
 import torch
 import torch.nn as nn
-import chebypack as ch
+from . import chebypack as ch
 import functools
 
 x2phi = functools.partial(ch.Wrapper, [ch.dct, ch.cmp_neumann])
 phi2x = functools.partial(ch.Wrapper, [ch.icmp_neumann, ch.idct])
 idctn = functools.partial(ch.Wrapper, [ch.idct])
 dctn = functools.partial(ch.Wrapper, [ch.dct])
-
 
 class PseudoSpectra(nn.Module):
     def __init__(self, in_channels, out_channels, degree, bandwidth):
@@ -48,12 +47,11 @@ class PseudoSpectra(nn.Module):
         return u
 
 
-
-
 class OPNO(nn.Module):
-    def __init__(self, modes, width):
+    def __init__(self, degree, width):
         super(OPNO, self).__init__()
-        self.degree = modes
+
+        self.degree = degree
         self.width = width
 
         self.conv0 = PseudoSpectra(self.width, self.width, self.degree, 3)
@@ -77,7 +75,7 @@ class OPNO(nn.Module):
         self.fc2 = nn.Linear(128, 1)
 
     def acti(self, x):
-        return nn.functional.gelu(x)
+        return torch.nn.functional.gelu(x)
 
     def forward(self, x):
 

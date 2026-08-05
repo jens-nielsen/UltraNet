@@ -1,7 +1,7 @@
 
 import torch
 import torch.nn as nn
-import chebypack as ch
+from . import chebypack as ch
 import functools
 
 x2phi = functools.partial(ch.Wrapper, [ch.dct, ch.cmp_neumann])

@@ -14,14 +14,15 @@ class Trainer:
 
     def step(self, x, y):
         out = self.model(x)
-        
-        # Decode the output and target using the normalizer
-        out = (out * (self.data.u_std + self.data.eps)) + self.data.u_mean
-        y = (y * (self.data.u_std + self.data.eps)) + self.data.u_mean
+
+        if self.args.normalize:
+            # Decode the output and target using the normalizer
+            out = (out * (self.data.u_std + self.data.eps)) + self.data.u_mean
+            y = (y * (self.data.u_std + self.data.eps)) + self.data.u_mean
 
         loss = self.loss_fn(out, y)
-
         return loss
+    
     def train_step(self, x, y):
         self.optimizer.zero_grad()
         loss = self.step(x, y)
@@ -36,21 +37,22 @@ class Trainer:
     
     def run(self, num_epochs):
 
-        print(self.args)
-        assert False
-        if self.args.wandb_project_name is not None:
+        print("Args:", self.args)
+        print("Model params:", self.model.count_params())
+        if self.args.project_name is not None:
             wandb.init(
-                project=self.args.wandb_project_name,
+                project=self.args.project_name,
                 config={**vars(self.args), "nparams": self.model.count_params()},
-                name=self.args.wandb_run_name,
+                name=self.args.run_name,
             )
 
         tbar = tqdm(range(num_epochs))
 
         # Move model and data normalizer to device
         self.model.to(self.device)
-        self.data.a_mean, self.data.a_std = self.data.a_mean.to(self.device), self.data.a_std.to(self.device)
-        self.data.u_mean, self.data.u_std = self.data.u_mean.to(self.device), self.data.u_std.to(self.device)
+        if self.args.normalize:
+            self.data.a_mean, self.data.a_std = self.data.a_mean.to(self.device), self.data.a_std.to(self.device)
+            self.data.u_mean, self.data.u_std = self.data.u_mean.to(self.device), self.data.u_std.to(self.device)
 
         for epoch in tbar:
 
@@ -61,7 +63,6 @@ class Trainer:
                 x, y = x.to(self.device), y.to(self.device)
                 loss = self.train_step(x, y)
                 train_l2 += loss
-
             self.scheduler.step()
 
             # Test 
@@ -79,9 +80,9 @@ class Trainer:
             tbar.set_description(
                 f"Epoch {epoch}, Train L2: {train_l2:.4f}, Test L2: {test_l2:.4f}"
             )
-            # if self.wandb_project_name is not None:
-            #     wandb.log({"Train L2": train_l2, "Test L2": test_l2})
+            if self.args.project_name is not None:
+                wandb.log({"Train L2": train_l2, "Test L2": test_l2})
 
-        if self.wandb_project_name is not None:
+        if self.args.project_name is not None:
             wandb.finish()
 
