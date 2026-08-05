@@ -1,3 +1,7 @@
+import enum
+import json
+import os
+
 import torch
 import wandb
 from tqdm import tqdm
@@ -39,10 +43,12 @@ class Trainer:
 
         print("Args:", self.args)
         print("Model params:", self.model.count_params())
+
+        config = {**vars(self.args), "nparams": self.model.count_params()}
         if self.args.project_name is not None:
             wandb.init(
                 project=self.args.project_name,
-                config={**vars(self.args), "nparams": self.model.count_params()},
+                config=config,
                 name=self.args.run_name,
             )
 
@@ -86,3 +92,18 @@ class Trainer:
         if self.args.project_name is not None:
             wandb.finish()
 
+
+        if not os.path.exists("./models"):
+            os.makedirs("./models/")
+
+        torch.save(self.model, f"./models/{self.args.run_name}.pt")
+        with open(f"./models/{self.args.run_name}.json", "w") as f:
+            json.dump(config, f, indent=4, cls=self.ConfigEncoder)
+
+    class ConfigEncoder(json.JSONEncoder):
+        def default(self, obj):
+            # Catch any Enum and return its string value
+            if isinstance(obj, enum.Enum):
+                return obj.value
+                
+            return super().default(obj)
