@@ -104,7 +104,6 @@ class UltraNet(nn.Module):
         self.conv1 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
         self.conv2 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
         self.conv3 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
-        self.conv4 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
 
         self.convl = BPSPseudoSpectra(2, self.width - 2, self.degree, 3, self.rank)
 

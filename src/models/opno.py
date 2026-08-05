@@ -58,7 +58,6 @@ class OPNO(nn.Module):
         self.conv1 = PseudoSpectra(self.width, self.width, self.degree, 3)
         self.conv2 = PseudoSpectra(self.width, self.width, self.degree, 3)
         self.conv3 = PseudoSpectra(self.width, self.width, self.degree, 3)
-        self.conv4 = PseudoSpectra(self.width, self.width, self.degree, 3)
 
         self.convl = PseudoSpectra(2, self.width - 2, self.degree, 3)
 
