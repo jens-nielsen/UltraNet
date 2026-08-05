@@ -44,7 +44,7 @@ if __name__ == "__main__":
     loss_fn = LpLoss(size_average=False)
 
     # Initialize device and Logging name
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
     # Train
     trainer = Trainer(model, optimizer, loss_fn, device=device, data=data, scheduler=scheduler, args=args)
