@@ -1,0 +1,17 @@
+{
+    "model": "opno",
+    "data": "burgers",
+    "run_name": "test",
+    "project_name": null,
+    "subsample": 16,
+    "arg": [
+        "modes=32",
+        "width=64"
+    ],
+    "nepochs": 1,
+    "ntrain": 1000,
+    "ntest": 200,
+    "batch_size": 4,
+    "normalize": false,
+    "nparams": 1609857
+}
