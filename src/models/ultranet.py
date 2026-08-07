@@ -4,8 +4,10 @@ import torch.nn as nn
 from . import chebypack as ch
 import functools
 
-x2phi = functools.partial(ch.Wrapper, [ch.dct, ch.cmp_neumann])
-phi2x = functools.partial(ch.Wrapper, [ch.icmp_neumann, ch.idct])
+x2phi_neumann = functools.partial(ch.Wrapper, [ch.dct, ch.cmp_neumann])
+phi2x_neumann = functools.partial(ch.Wrapper, [ch.icmp_neumann, ch.idct])
+x2phi_dirichlet = functools.partial(ch.Wrapper, [ch.dct, ch.cmp])
+phi2x_dirichlet = functools.partial(ch.Wrapper, [ch.icmp, ch.idct])
 idctn = functools.partial(ch.Wrapper, [ch.idct])
 dctn = functools.partial(ch.Wrapper, [ch.dct])
 
@@ -88,14 +90,14 @@ class BPSPseudoSpectra(nn.Module):
 
         out[..., : self.degree] += L_contrib + U_contrib
 
-        u = phi2x(out, -1)
+        u = phi2x_neumann(out, -1)
 
         return u 
 
 
-class UltraNet(nn.Module):
+class UltraNet1D(nn.Module):
     def __init__(self, modes, width, rank):
-        super(UltraNet, self).__init__()
+        super(UltraNet1D, self).__init__()
         self.degree = modes
         self.width = width
         self.rank = rank
@@ -140,6 +142,131 @@ class UltraNet(nn.Module):
         x = self.fc1(x)
         x = self.acti(x)
         x = self.fc2(x)
-        x = phi2x(x2phi(x, -2), -2)
+        x = phi2x_neumann(x2phi_neumann(x, -2), -2)
+
+        return x
+
+# 2D UltraNet
+
+class BPSPseudoSpectra2d(nn.Module):
+    def __init__(self, in_channels, out_channels, degree1, degree2, bandwidth, rank):
+        super(BPSPseudoSpectra2d, self).__init__()
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.degree1 = degree1
+        self.degree2 = degree2
+        self.bandwidth = bandwidth
+        self.rank = rank
+
+        self.scale = 2 / (in_channels + out_channels)
+        self.weights = nn.Parameter(
+            self.scale
+            * torch.rand(
+                in_channels * bandwidth * bandwidth,
+                out_channels,
+                degree1 * degree2,
+                dtype=torch.float32,
+            )
+        )
+
+        self.tril = LowRankTriangular(
+            in_channels, out_channels, degree1 * degree2, rank, is_lower=True
+        )
+        self.triu = LowRankTriangular(
+            in_channels, out_channels, degree1 * degree2, rank, is_lower=False
+        )
+
+        # self.unfold = torch.nn.Unfold(kernel_size=(self.bandwidth,self.bandwidth), padding=(self.bandwidth-1)//2)
+        self.unfold = torch.nn.Unfold(kernel_size=(self.bandwidth, self.bandwidth))
+
+    def quasi_diag_mul2d(self, input, weights):
+        print(input.shape)
+        xpad = self.unfold(input)
+        print(xpad.shape)
+        assert False
+        return torch.einsum("bix, iox->box", xpad, weights)
+
+    def forward(self, u):
+        batch_size, width, Nx, Ny = u.shape
+
+        a = dctn(u, [-1, -2])
+
+        b = torch.zeros(
+            batch_size, self.out_channels, Nx, Ny, device=u.device, dtype=torch.float32
+        )
+        print(u.shape, a.shape, self.weights.shape)
+        b[..., : self.degree1, : self.degree2] = self.quasi_diag_mul2d(
+            a[..., : self.degree1 + 2, : self.degree2 + 2], self.weights
+        ).reshape(batch_size, self.out_channels, self.degree1, self.degree2)
+
+        # Triangular contributions - we apply the low-rank factors to the flattened coefficients and then reshape back to 2D
+        L_tri = self.tril(a[..., : self.degree1, : self.degree2].flatten(-2, -1))
+        U_tri = self.triu(a[..., : self.degree1, : self.degree2].flatten(-2, -1))
+
+        b[..., : self.degree1, : self.degree2] += (L_tri + U_tri).reshape(
+            batch_size, self.out_channels, self.degree1, self.degree2
+        )
+
+        u = phi2x_dirichlet(b, [-1, -2])
+        return u
+
+
+class UltraNet2D(nn.Module):
+    def __init__(self, degree1, degree2, width, rank):
+        super(UltraNet2D, self).__init__()
+
+        self.degree1 = degree1
+        self.degree2 = degree2
+        self.width = width
+        self.rank = rank
+
+        self.fc0 = nn.Linear(3, self.width)  # input channel is 3: (a(x, y), x, y)
+
+        self.conv0 = BPSPseudoSpectra2d(self.width, self.width, self.degree1, self.degree2, 3, self.rank)
+        self.conv1 = BPSPseudoSpectra2d(self.width, self.width, self.degree1, self.degree2, 3, self.rank)
+        self.conv2 = BPSPseudoSpectra2d(self.width, self.width, self.degree1, self.degree2, 3, self.rank)
+        self.conv3 = BPSPseudoSpectra2d(self.width, self.width, self.degree1, self.degree2, 3, self.rank)
+
+        self.convl = BPSPseudoSpectra2d(2, self.width - 2, self.degree1, self.degree2, 3, self.rank)
+
+        self.w0 = nn.Conv1d(
+            self.width,
+            self.width,
+            1,
+        )  # better
+        self.w1 = nn.Conv1d(self.width, self.width, 1)
+        self.w2 = nn.Conv1d(self.width, self.width, 1)
+        self.w3 = nn.Conv1d(self.width, self.width, 1)
+
+        self.fc1 = nn.Linear(self.width, 128)
+        self.fc2 = nn.Linear(128, 1)
+
+    def acti(self, x):
+        return torch.nn.functional.gelu(x)
+
+    def forward(self, x):
+        # x : (batches, nx, ny, [Einc(x, y), cnt(x, y), x, y])
+
+        x = self.fc0(x)
+
+        x = x.permute(0, 3, 1, 2)
+
+
+        x = torch.cat([x, self.acti(self.convl(x))], dim=1)
+
+        x = x + self.acti(self.w0(x) + self.conv0(x))
+
+        x = x + self.acti(self.w1(x) + self.conv1(x))
+
+        x = x + self.acti(self.w2(x) + self.conv2(x))
+
+        x = x + self.acti(self.w3(x) + self.conv3(x))
+
+        x = x.permute(0, 2, 3, 1)
+        x = self.fc1(x)
+        x = self.acti(x)
+        x = self.fc2(x)
+        x = phi2x_dirichlet(x2phi_dirichlet(x, [1, 2]), [1, 2])
 
         return x

@@ -33,8 +33,13 @@ if __name__ == "__main__":
                                 subsample=args.subsample)
 
     # Initialize model
+
     model_params = {k: eval(v) for k, v in (arg.split('=') for arg in args.arg)}
     model = NeuralOperatorModel(args.model, d=data.d, **model_params)
+
+
+    print("Args:", args)
+    print("Model params:", model.count_params())
 
     # Initialize optimizer and scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)

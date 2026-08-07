@@ -181,10 +181,10 @@ class NeuralOperatorDataset:
         data = torch.load(pth)
 
         subsample_index = [slice(None, None, subsample),] * self.d
-        a_train = data['a'][:ntrain][:, *subsample_index]
-        u_train = data['u'][:ntrain][:, *subsample_index]
-        a_test = data['a'][-ntest:][:, *subsample_index]
-        u_test = data['u'][-ntest:][:, *subsample_index]
+        a_train = data['a'][:ntrain][:, *subsample_index].to(torch.float32)
+        u_train = data['u'][:ntrain][:, *subsample_index].to(torch.float32)
+        a_test = data['a'][-ntest:][:, *subsample_index].to(torch.float32)
+        u_test = data['u'][-ntest:][:, *subsample_index].to(torch.float32)
 
         # # Normalize data
         if normalize:

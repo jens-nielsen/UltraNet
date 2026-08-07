@@ -40,10 +40,6 @@ class Trainer:
 
     
     def run(self, num_epochs):
-
-        print("Args:", self.args)
-        print("Model params:", self.model.count_params())
-
         config = {**vars(self.args), "nparams": self.model.count_params()}
         if self.args.project_name is not None:
             wandb.init(
