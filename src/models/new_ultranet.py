@@ -140,8 +140,6 @@ class UltrasphericalInverse(nn.Module):
         self.interior_len = modes - num_bcs
         self.scale = 2/(in_c + out_c)
 
-        print(self.interior_len, semi_rank)
-        
         # ---------------------------------------------------------
         # 1. The B22 Block (Interior): Semiseparable + Rank k
         # ---------------------------------------------------------
@@ -194,7 +192,8 @@ class UltrasphericalInverse(nn.Module):
         # --- Stitch the full Matrix W ---
         # W = [ B11   B12 ]
         #     [ B21   B22 ]
-        
+        # print(self.B11.shape, self.B12.shape, self.B21.shape, B22.shape)
+        # assert False
         row1 = torch.cat([self.B11, self.B12], dim=-1)
         row2 = torch.cat([self.B21, B22], dim=-1)      
         W = torch.cat([row1, row2], dim=-2)            

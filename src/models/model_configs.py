@@ -70,6 +70,18 @@ class SSUltraNetConfig(ModelConfig):
         if d == 1:
             from .new_ultranet import SSUltraNet1D
             return SSUltraNet1D(modes=self.modes, width=self.width, rank=self.rank, n_bc=self.nbc)
+
+@dataclass
+class CUltraNetConfig(ModelConfig):
+    modes: int | list[int]
+    width: int
+    rank: int
+
+    def create_model(self, d: int) -> torch.nn.Module:
+        if d == 1:
+            from .channel_ultranet import ChannelUltraNet1D
+            return ChannelUltraNet1D(modes=self.modes, width=self.width, rank=self.rank)
+        
         
  
 
@@ -78,12 +90,14 @@ class ModelType(Enum):
     OPNO = "opno"
     UltraNet = "ultranet"
     SSUltraNet = "ss"
+    CUltraNET = "cun"
 
 model_config_mapping: dict[ModelType, ModelConfig] = {
     ModelType.FNO: FNOConfig,
     ModelType.OPNO: OPNOConfig,
     ModelType.UltraNet: UltraNetConfig,
     ModelType.SSUltraNet: SSUltraNetConfig,
+    ModelType.CUltraNET: CUltraNetConfig
 }
 
 class NeuralOperatorModel(nn.Module):

@@ -13,7 +13,7 @@ dctn = functools.partial(ch.Wrapper, [ch.dct])
 
 
 class LowRankTriangular(nn.Module):
-    def __init__(self, in_channels, out_channels, v_modes, rank, is_lower=True):
+    def __init__(self, channels, v_modes, rank, is_lower=True):
         super().__init__()
         self.n = v_modes
         self.r = rank
@@ -22,56 +22,54 @@ class LowRankTriangular(nn.Module):
         else:
             self.tri_func = torch.triu
 
-        self.scale = 2 / (in_channels + out_channels)
+        self.scale = 1 / (channels + v_modes)
         # Initialize U and V (n x r)
         # We use a standard deviation scaled by rank for stability
         self.U = nn.Parameter(
-            torch.randn(out_channels, in_channels, v_modes, rank) * self.scale
+            torch.randn(channels, v_modes, rank) * self.scale
         )
         self.V = nn.Parameter(
-            torch.randn(out_channels, in_channels, v_modes, rank) * self.scale
+            torch.randn(channels, v_modes, rank) * self.scale
         )
 
     def forward(self, x):
         batch_size, channels, v_modes = x.shape
         # 1. Compute the low-rank product: (n x r) @ (r x n) -> (n x n)
-        matrix = torch.einsum("oivk, oiwk->oivw", self.U, self.V)
+        matrix = torch.einsum("cvk, cwk->cvw", self.U, self.V)
         output = torch.einsum(
-            "oivw, biw->bov", self.tri_func(matrix, diagonal=-1), x
+            "cvw, bcw->bcv", self.tri_func(matrix, diagonal=-1), x
         )  # (B, out_channel, v_mode)
         return output
 
 
-class BPSPseudoSpectra(nn.Module):
-    def __init__(self, in_channels, out_channels, v_modes, bandwidth, rank):
-        super(BPSPseudoSpectra, self).__init__()
-
-        self.in_channels = in_channels
-        self.out_channels = out_channels
+class ChannelBPSPseudoSpectra(nn.Module):
+    def __init__(self, channels, v_modes, bandwidth, rank):
+        super(ChannelBPSPseudoSpectra, self).__init__()
+        self.channels = channels
         self.degree = v_modes
         self.bandwidth = bandwidth
         self.rank = rank
 
-        self.scale = 2 / (in_channels + out_channels)
+        self.scale = 1 / (channels + v_modes)
         self.weights = nn.Parameter(
             self.scale
             * torch.rand(
-                v_modes, in_channels, out_channels, bandwidth, dtype=torch.float32
+                v_modes, channels, bandwidth, dtype=torch.float32
             )
         )
 
         self.tril = LowRankTriangular(
-            in_channels, out_channels, v_modes, rank, is_lower=True
+            channels, v_modes, rank, is_lower=True
         )
         self.triu = LowRankTriangular(
-            in_channels, out_channels, v_modes, rank, is_lower=False
+            channels, v_modes, rank, is_lower=False
         )
 
     def quasi_diag(self, x, weights):
         xpad = x.unfold(
             -1, self.bandwidth, 1
         )  # (batches, in_channel, v_mode, bandwidth)
-        return torch.einsum("bixw, xiow->box", xpad, weights)
+        return torch.einsum("bcxw, xcw->bcx", xpad, weights)
 
     def forward(self, u):
         # x : (batches, nx, features)
@@ -80,7 +78,7 @@ class BPSPseudoSpectra(nn.Module):
         b = dctn(u, -1)
 
         out = torch.zeros(
-            batch_size, self.out_channels, Nx, device=u.device, dtype=torch.float32
+            batch_size, self.channels, Nx, device=u.device, dtype=torch.float32
         )
         out[..., : self.degree] = self.quasi_diag(
             b[..., : self.degree + 2], self.weights
@@ -90,24 +88,25 @@ class BPSPseudoSpectra(nn.Module):
 
         out[..., : self.degree] += L_contrib + U_contrib
 
-        u = phi2x_neumann(out, -1)
+        u = idctn(out, -1)
 
         return u 
 
 
-class UltraNet1D(nn.Module):
+class ChannelUltraNet1D(nn.Module):
     def __init__(self, modes, width, rank):
-        super(UltraNet1D, self).__init__()
+        super(ChannelUltraNet1D, self).__init__()
         self.degree = modes
         self.width = width
         self.rank = rank
 
-        self.conv0 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
-        self.conv1 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
-        self.conv2 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
-        self.conv3 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
+        self.fc0 = nn.Linear(2, self.width-2)
 
-        self.convl = BPSPseudoSpectra(2, self.width - 2, self.degree, 3, self.rank)
+        self.conv0 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank)
+        self.conv1 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank)
+        self.conv2 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank)
+        self.conv3 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank)
+
 
         self.w0 = nn.Conv1d(
             self.width,
@@ -126,9 +125,8 @@ class UltraNet1D(nn.Module):
 
     def forward(self, x):
 
+        x = torch.cat([x, self.acti(self.fc0(x))], dim=-1)
         x = x.permute(0, 2, 1)
-
-        x = torch.cat([x, self.acti(self.convl(x))], dim=1)
 
         x = x + self.acti(self.w0(x) + self.conv0(x))
 
@@ -142,7 +140,6 @@ class UltraNet1D(nn.Module):
         x = self.fc1(x)
         x = self.acti(x)
         x = self.fc2(x)
-        x = phi2x_neumann(x2phi_neumann(x, -2), -2)
 
         return x
 
