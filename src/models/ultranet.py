@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from . import chebypack as ch
 import functools
+from src.utils import BoundaryType
 
 x2phi_neumann = functools.partial(ch.Wrapper, [ch.dct, ch.cmp_neumann])
 phi2x_neumann = functools.partial(ch.Wrapper, [ch.icmp_neumann, ch.idct])
@@ -43,8 +44,11 @@ class LowRankTriangular(nn.Module):
 
 
 class BPSPseudoSpectra(nn.Module):
-    def __init__(self, in_channels, out_channels, v_modes, bandwidth, rank):
+    def __init__(self, in_channels, out_channels, v_modes, bandwidth, rank, bc: BoundaryType):
         super(BPSPseudoSpectra, self).__init__()
+
+        self.phi2x = phi2x_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else phi2x_neumann if bc == BoundaryType.NEUMANN else idctn 
+
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -90,24 +94,28 @@ class BPSPseudoSpectra(nn.Module):
 
         out[..., : self.degree] += L_contrib + U_contrib
 
-        u = phi2x_neumann(out, -1)
+        u = self.phi2x(out, -1)
 
         return u 
 
 
 class UltraNet1D(nn.Module):
-    def __init__(self, modes, width, rank):
+    def __init__(self, modes, width, rank,  bc: BoundaryType):
         super(UltraNet1D, self).__init__()
+
+        self.phi2x = phi2x_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else phi2x_neumann if bc == BoundaryType.NEUMANN else idctn 
+        self.x2phi = x2phi_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else x2phi_neumann if bc == BoundaryType.NEUMANN else dctn 
+
         self.degree = modes
         self.width = width
         self.rank = rank
 
-        self.conv0 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
-        self.conv1 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
-        self.conv2 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
-        self.conv3 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank)
+        self.conv0 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank, bc)
+        self.conv1 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank, bc)
+        self.conv2 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank, bc)
+        self.conv3 = BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank, bc)
 
-        self.convl = BPSPseudoSpectra(2, self.width - 2, self.degree, 3, self.rank)
+        self.convl = BPSPseudoSpectra(2, self.width - 2, self.degree, 3, self.rank, bc)
 
         self.w0 = nn.Conv1d(
             self.width,

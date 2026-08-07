@@ -72,21 +72,37 @@ class MatReader(object):
         self.to_float = to_float
 
 
+
+class BoundaryType(Enum):
+    PERIODIC = "p"
+    NEUMANN = "n"
+    DIRICHLET = "d"
 @dataclass
 class DataConfig:
     pth: str
     cheby_pth: str | None
     d: int
+    bc: BoundaryType = None
+
 
 BurgersData = DataConfig(
     pth="./datasets/burgers_neumann_uniform.pt",
     cheby_pth="./datasets/burgers_neumann_chebyshev.pt",
     d=1,
+    bc=BoundaryType.NEUMANN
+
+)
+BurgersPeriodicData = DataConfig(
+    pth="./datasets/burgers_periodic_uni.pt",
+    cheby_pth="./datasets/burgers_periodic_cgl.pt",
+    d=1,
+    bc=BoundaryType.DIRICHLET
 )
 DarcyData = DataConfig(
     pth="./datasets/darcy_flow_uniform.pt",
     cheby_pth="./datasets/darcy_flow_chebyshev.pt",
     d=2,
+    bc=BoundaryType.DIRICHLET
 )
 HelmholtzData = DataConfig(
     pth="./datasets/Helmholtz_uniform_128.pt",
@@ -96,11 +112,13 @@ HelmholtzData = DataConfig(
 
 class DataType(Enum):
     BURGERS = "burgers"
+    BURGERS_PERIODIC = "burgers_p"
     DARCY = "darcy"
     HELMHOLTZ = "helmholtz"
 
 data_config_map: dict[DataType, DataConfig] = {
     DataType.BURGERS: BurgersData,
+    DataType.BURGERS_PERIODIC: BurgersPeriodicData,
     DataType.DARCY: DarcyData,
     DataType.HELMHOLTZ: HelmholtzData,
 }
@@ -211,22 +229,25 @@ if __name__ == "__main__":
     #  Test the dataset class
     data = NeuralOperatorDataset(DataType.HELMHOLTZ, is_cheby=False, ntrain=1000, ntest=200, batch_size=32, normalize=True, subsample=1)
 
-    # reader = MatReader("./datasets/burgers_neumann.mat")
-    # a_cgl = reader.read_field("u0_cgl").permute(1, 0).unsqueeze(-1)
-    # u_cgl = reader.read_field("u1_cgl").permute(1, 0).unsqueeze(-1)
-    # a_unif = reader.read_field("u0_unif").permute(1, 0).unsqueeze(-1)
-    # u_unif = reader.read_field("u1_unif").permute(1, 0).unsqueeze(-1)
+    data_cgl = torch.load("./datasets/burgers_periodic_cgl.pt")
+    data_uni = torch.load("./datasets/burgers_periodic_uni.pt")
 
-    # print(a_cgl.shape, u_cgl.shape, a_unif.shape, u_unif.shape)
+    print(data_cgl["a"].shape)
+    data_cgl_update = {
+        "u": data_cgl["u"].unsqueeze(-1),
+        "a": data_cgl["a"].unsqueeze(-1),
+        "x": data_cgl["x"]
+    }
 
-    # cgl_dict = {"a": a_cgl,
-    #             "u": u_cgl}   
-    # unif_dict = {"a": a_unif,
-    #             "u": u_unif}   
+    data_uni_update = {
+        "u": data_uni["u"].unsqueeze(-1),
+        "a": data_uni["a"].unsqueeze(-1),
+        "x": data_uni["x"]
+    }
 
-    # torch.save(cgl_dict, "./datasets/burgers_neumann_chebyshev.pt")
-    # torch.save(unif_dict, "./datasets/burgers_neumann_uniform.pt")
-
+    print(data_cgl_update["a"].shape)
+    torch.save(data_cgl_update, "./datasets/burgers_periodic_cgl.pt")
+    torch.save(data_uni_update, "./datasets/burgers_periodic_uni.pt")
 
 
     

@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # Initialize model
 
     model_params = {k: eval(v) for k, v in (arg.split('=') for arg in args.arg)}
-    model = NeuralOperatorModel(args.model, d=data.d, **model_params)
+    model = NeuralOperatorModel(args.model, data=args.data, **model_params)
 
 
     print("Args:", args)

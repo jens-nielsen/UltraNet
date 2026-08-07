@@ -2,132 +2,16 @@ import torch
 import torch.nn as nn
 from . import chebypack as ch
 import functools
+from src.utils import BoundaryType
 
 
+x2phi_neumann = functools.partial(ch.Wrapper, [ch.dct, ch.cmp_neumann])
+phi2x_neumann = functools.partial(ch.Wrapper, [ch.icmp_neumann, ch.idct])
+x2phi_dirichlet = functools.partial(ch.Wrapper, [ch.dct, ch.cmp])
+phi2x_dirichlet = functools.partial(ch.Wrapper, [ch.icmp, ch.idct])
 idctn = functools.partial(ch.Wrapper, [ch.idct])
 dctn = functools.partial(ch.Wrapper, [ch.dct])
 
-class LearnableSemiseparable(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, modes: int, rank: int):
-        super().__init__()
-        # Learnable generators for lower (P, Q) and upper (U, V) triangular parts
-        self.scale = 2/(in_channels + out_channels)
-        self.P = nn.Parameter(torch.randn(in_channels, out_channels, modes, rank) * self.scale)
-        self.Q = nn.Parameter(torch.randn(in_channels, out_channels, modes, rank) * self.scale)
-        self.U = nn.Parameter(torch.randn(in_channels, out_channels, modes, rank) * self.scale)
-        self.V = nn.Parameter(torch.randn(in_channels, out_channels, modes, rank) * self.scale)
-        self.diag = nn.Parameter(torch.randn(in_channels, out_channels, modes)* self.scale)
-
-    def forward(self, x):
-        # x shape: (batch_size, seq_len)
-        b, i, n = x.shape
-        
-        # 1. Lower triangular part (including diagonal): tril(P @ Q.T) @ x
-        # Q_x is (batch_size, seq_len, rank)
-        Q_x = self.Q.unsqueeze(0) * x.unsqueeze(-1) 
-        # Cumulative sum calculates the causal prefix sum in O(N)
-        cumsum_Q_x = torch.cumsum(Q_x, dim=1) 
-        lower_y = (self.P.unsqueeze(0) * cumsum_Q_x).sum(dim=-1)
-        
-        # 2. Upper triangular part (strictly upper): triu(U @ V.T, 1) @ x
-        V_x = self.V.unsqueeze(0) * x.unsqueeze(-1)
-        # Reverse cumulative sum for the anti-causal part
-        rev_cumsum_V_x = torch.flip(torch.cumsum(torch.flip(V_x, dims=[1]), dim=1), dims=[1])
-        # Shift by 1 to make it strictly upper triangular
-        shifted_rev_cumsum = torch.cat([rev_cumsum_V_x[:, 1:, :], torch.zeros_like(rev_cumsum_V_x[:, :1, :])], dim=1)
-        upper_y = (self.U.unsqueeze(0) * shifted_rev_cumsum).sum(dim=-1)
-        
-        # 3. Add diagonal correction if needed (or absorb into lower/upper)
-        return lower_y + upper_y + self.diag * x
-
-class LearnableLowRank(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, modes: int, rank: int):
-        super().__init__()
-        # Generators U and V of shape (seq_len, rank)
-        # We scale the initialization to keep variances stable
-        self.scale = 2/(in_channels + out_channels)
-        self.U = nn.Parameter(torch.randn(in_channels, out_channels, modes, rank) * self.scale)
-        self.V = nn.Parameter(torch.randn(in_channels, out_channels, modes, rank) * self.scale)
-
-    def forward(self, x):
-        """
-        Args:
-            x: Tensor of shape (batch_size, seq_len)
-        Returns:
-            y: Tensor of shape (batch_size, seq_len)
-        """
-        # Step 1: Compute V^T * x 
-        # (batch_size, seq_len) @ (seq_len, rank) -> (batch_size, rank)
-        # This is equivalent to taking the dot product of x with every column of V
-        c = torch.einsum('bin, ionr -> bior', x, self.V)
-        y = torch.einsum('bior, ionr -> bon', c, self.U)
-        return y
-
-
-import torch
-import torch.nn as nn
-
-class MultiChannelSemiseparableExplicit(nn.Module):
-    def __init__(self, in_c: int, out_c: int, modes: int, rank: int):
-        super().__init__()
-        # Generators remain the same shape: (in_c, out_c, seq_len, rank)
-        self.scale = 2 / (in_c + out_c)
-        self.P = nn.Parameter(torch.randn(in_c, out_c, modes, rank) * self.scale)
-        self.Q = nn.Parameter(torch.randn(in_c, out_c, modes, rank) * self.scale)
-        
-        self.U = nn.Parameter(torch.randn(in_c, out_c, modes, rank) * self.scale)
-        self.V = nn.Parameter(torch.randn(in_c, out_c, modes, rank) * self.scale)
-        
-        self.diag = nn.Parameter(torch.randn(in_c, out_c, modes))
-
-    def forward(self, x):
-        """
-        Args:
-            x: Tensor of shape (batch_size, in_c, seq_len)
-        Returns:
-            y: Tensor of shape (batch_size, out_c, seq_len)
-        """
-        # --- 1. Form the T x T matrices independent of the batch ---
-        # P @ Q^T -> shape: (in_c, out_c, seq_len, seq_len)
-        # We use 'S' for the second sequence dimension
-        lower_dense = torch.einsum('iotk, ioSk -> iotS', self.P, self.Q)
-        
-        # Apply causal mask (lower triangular)
-        lower_masked = torch.tril(lower_dense)
-        
-        # U @ V^T -> shape: (in_c, out_c, seq_len, seq_len)
-        upper_dense = torch.einsum('iotk, ioSk -> iotS', self.U, self.V)
-        
-        # Apply strictly anti-causal mask (upper triangular, shifted by 1)
-        upper_masked = torch.triu(upper_dense, diagonal=1)
-        
-        # --- 2. Combine the masks ---
-        # W shape: (in_c, out_c, seq_len, seq_len)
-        W = lower_masked + upper_masked
-        
-        # --- 3. Apply to the batched input x ---
-        # W @ x -> sum over in_c (i) and input seq_len (S)
-        # W is (i, o, t, S) and x is (b, i, S) -> y is (b, o, t)
-        y = torch.einsum('iotS, biS -> bot', W, x)
-        
-        # --- 4. Diagonal Correction ---
-        y_diag = torch.einsum('iot, bit -> bot', self.diag, x)
-        
-        return y + y_diag
-
-class LearnableQII(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, modes: int, semiseparable_rank: int, boundary_rank: int):
-        super().__init__()
-        self.semiseparable = MultiChannelSemiseparableExplicit(in_c=in_channels, out_c=out_channels, modes=modes, rank=semiseparable_rank)
-        self.lr_correction = LearnableLowRank(in_channels=in_channels, out_channels=out_channels, modes=modes, rank=boundary_rank)
-
-    def forward(self, x):
-        x_ss = self.semiseparable(x)
-        x_lrc = self.lr_correction(x)
-        return x_ss + x_lrc
- 
-import torch
-import torch.nn as nn
 
 class UltrasphericalInverse(nn.Module):
     def __init__(self, in_c: int, out_c: int, modes: int, num_bcs: int, semi_rank: int):
@@ -221,7 +105,7 @@ class UltrasphericalInverse(nn.Module):
 
 
 class SSUltraNet1D(nn.Module):
-    def __init__(self, modes, width, rank, n_bc):
+    def __init__(self, modes, width, rank, n_bc: int):
         super(SSUltraNet1D, self).__init__()
         self.degree = modes
         self.width = width

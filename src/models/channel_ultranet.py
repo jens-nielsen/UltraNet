@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from . import chebypack as ch
 import functools
+from src.utils import BoundaryType
 
 x2phi_neumann = functools.partial(ch.Wrapper, [ch.dct, ch.cmp_neumann])
 phi2x_neumann = functools.partial(ch.Wrapper, [ch.icmp_neumann, ch.idct])
@@ -43,8 +44,11 @@ class LowRankTriangular(nn.Module):
 
 
 class ChannelBPSPseudoSpectra(nn.Module):
-    def __init__(self, channels, v_modes, bandwidth, rank):
+    def __init__(self, channels, v_modes, bandwidth, rank, bc: BoundaryType):
         super(ChannelBPSPseudoSpectra, self).__init__()
+
+        self.phi2x = phi2x_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else phi2x_neumann if bc == BoundaryType.NEUMANN else idctn 
+
         self.channels = channels
         self.degree = v_modes
         self.bandwidth = bandwidth
@@ -88,24 +92,28 @@ class ChannelBPSPseudoSpectra(nn.Module):
 
         out[..., : self.degree] += L_contrib + U_contrib
 
-        u = idctn(out, -1)
+        u = self.phi2x(out, -1)
 
         return u 
 
 
 class ChannelUltraNet1D(nn.Module):
-    def __init__(self, modes, width, rank):
+    def __init__(self, modes, width, rank, bc: BoundaryType):
         super(ChannelUltraNet1D, self).__init__()
+
+        self.phi2x = phi2x_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else phi2x_neumann if bc == BoundaryType.NEUMANN else idctn 
+        self.x2phi = x2phi_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else x2phi_neumann if bc == BoundaryType.NEUMANN else dctn 
+
         self.degree = modes
         self.width = width
         self.rank = rank
 
         self.fc0 = nn.Linear(2, self.width-2)
 
-        self.conv0 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank)
-        self.conv1 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank)
-        self.conv2 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank)
-        self.conv3 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank)
+        self.conv0 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank, bc=bc)
+        self.conv1 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank, bc=bc)
+        self.conv2 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank, bc=bc)
+        self.conv3 = ChannelBPSPseudoSpectra(self.width, self.degree, 3, self.rank, bc=bc)
 
 
         self.w0 = nn.Conv1d(
@@ -140,6 +148,7 @@ class ChannelUltraNet1D(nn.Module):
         x = self.fc1(x)
         x = self.acti(x)
         x = self.fc2(x)
+        x = self.phi2x(self.x2phi(x, -2), -2)
 
         return x
 

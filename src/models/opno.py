@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from . import chebypack as ch
 import functools
+from src.utils import BoundaryType
 
 x2phi_neumann = functools.partial(ch.Wrapper, [ch.dct, ch.cmp_neumann])
 phi2x_neumann = functools.partial(ch.Wrapper, [ch.icmp_neumann, ch.idct])
@@ -12,8 +13,10 @@ idctn = functools.partial(ch.Wrapper, [ch.idct])
 dctn = functools.partial(ch.Wrapper, [ch.dct])
 
 class PseudoSpectra(nn.Module):
-    def __init__(self, in_channels, out_channels, degree, bandwidth):
+    def __init__(self, in_channels, out_channels, degree, bandwidth, bc: BoundaryType):
         super(PseudoSpectra, self).__init__()
+
+        self.phi2x = phi2x_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else phi2x_neumann if bc == BoundaryType.NEUMANN else idctn 
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -45,23 +48,27 @@ class PseudoSpectra(nn.Module):
             b[..., : self.degree + 2], self.weights
         )
 
-        u = phi2x_neumann(out, -1)
+        u = self.phi2x(out, -1)
         return u
 
 
 class OPNO1D(nn.Module):
-    def __init__(self, degree, width):
+    def __init__(self, degree, width, bc: BoundaryType):
         super(OPNO1D, self).__init__()
 
+        self.phi2x = phi2x_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else phi2x_neumann if bc == BoundaryType.NEUMANN else idctn 
+        self.x2phi = x2phi_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else x2phi_neumann if bc == BoundaryType.NEUMANN else dctn 
+
+        print(self.phi2x, self.x2phi, bc)
         self.degree = degree
         self.width = width
 
-        self.conv0 = PseudoSpectra(self.width, self.width, self.degree, 3)
-        self.conv1 = PseudoSpectra(self.width, self.width, self.degree, 3)
-        self.conv2 = PseudoSpectra(self.width, self.width, self.degree, 3)
-        self.conv3 = PseudoSpectra(self.width, self.width, self.degree, 3)
+        self.conv0 = PseudoSpectra(self.width, self.width, self.degree, 3, bc)
+        self.conv1 = PseudoSpectra(self.width, self.width, self.degree, 3, bc)
+        self.conv2 = PseudoSpectra(self.width, self.width, self.degree, 3, bc)
+        self.conv3 = PseudoSpectra(self.width, self.width, self.degree, 3, bc)
 
-        self.convl = PseudoSpectra(2, self.width - 2, self.degree, 3)
+        self.convl = PseudoSpectra(2, self.width - 2, self.degree, 3, bc)
 
         self.w0 = nn.Conv1d(
             self.width,
@@ -96,7 +103,7 @@ class OPNO1D(nn.Module):
         x = self.fc1(x)
         x = self.acti(x)
         x = self.fc2(x)
-        x = phi2x_neumann(x2phi_neumann(x, -2), -2)
+        x = self.phi2x(self.x2phi(x, -2), -2)
 
         return x
 
