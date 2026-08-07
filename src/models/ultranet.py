@@ -189,11 +189,7 @@ class BPSPseudoSpectra2d(nn.Module):
         self.unfold = torch.nn.Unfold(kernel_size=(self.bandwidth, self.bandwidth))
 
     def quasi_diag_mul2d(self, input, weights):
-        print(input.shape)
         xpad = self.unfold(input)
-        print(xpad.shape)
-        print(weights.shape)
-        # assert False
         return torch.einsum("bix, iox->box", xpad, weights)
 
     def forward(self, u):
@@ -204,7 +200,6 @@ class BPSPseudoSpectra2d(nn.Module):
         b = torch.zeros(
             batch_size, self.out_channels, Nx, Ny, device=u.device, dtype=torch.float32
         )
-        print(u.shape, a.shape, self.weights.shape)
         b[..., : self.degree1, : self.degree2] = self.quasi_diag_mul2d(
             a[..., : self.degree1 + 2, : self.degree2 + 2], self.weights
         ).reshape(batch_size, self.out_channels, self.degree1, self.degree2)
@@ -237,16 +232,10 @@ class UltraNet2D(nn.Module):
         self.conv2 = BPSPseudoSpectra2d(self.width, self.width, self.degree1, self.degree2, 3, self.rank)
         self.conv3 = BPSPseudoSpectra2d(self.width, self.width, self.degree1, self.degree2, 3, self.rank)
 
-        self.convl = BPSPseudoSpectra2d(2, self.width - 2, self.degree1, self.degree2, 3, self.rank)
-
-        self.w0 = nn.Conv1d(
-            self.width,
-            self.width,
-            1,
-        )  # better
-        self.w1 = nn.Conv1d(self.width, self.width, 1)
-        self.w2 = nn.Conv1d(self.width, self.width, 1)
-        self.w3 = nn.Conv1d(self.width, self.width, 1)
+        self.w0 = nn.Conv2d(self.width, self.width, 1)
+        self.w1 = nn.Conv2d(self.width, self.width, 1)
+        self.w2 = nn.Conv2d(self.width, self.width, 1)
+        self.w3 = nn.Conv2d(self.width, self.width, 1)
 
         self.fc1 = nn.Linear(self.width, 128)
         self.fc2 = nn.Linear(128, 1)
@@ -260,9 +249,6 @@ class UltraNet2D(nn.Module):
         x = self.fc0(x)
 
         x = x.permute(0, 3, 1, 2)
-
-
-        x = torch.cat([x, self.acti(self.convl(x))], dim=1)
 
         x = x + self.acti(self.w0(x) + self.conv0(x))
 
