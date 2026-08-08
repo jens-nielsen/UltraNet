@@ -77,6 +77,7 @@ class BoundaryType(Enum):
     PERIODIC = "p"
     NEUMANN = "n"
     DIRICHLET = "d"
+    ROBIN = "r"
 @dataclass
 class DataConfig:
     pth: str
@@ -98,6 +99,13 @@ BurgersPeriodicData = DataConfig(
     d=1,
     bc=BoundaryType.DIRICHLET
 )
+BurgersPSRobinData = DataConfig(
+    pth="./datasets/burgers_psrobin_uni.pt",
+    cheby_pth="./datasets/burgers_psrobin_cgl.pt",
+    d=1,
+    bc=BoundaryType.ROBIN
+)
+
 DarcyData = DataConfig(
     pth="./datasets/darcy_flow_uniform.pt",
     cheby_pth="./datasets/darcy_flow_chebyshev.pt",
@@ -113,12 +121,15 @@ HelmholtzData = DataConfig(
 class DataType(Enum):
     BURGERS = "burgers"
     BURGERS_PERIODIC = "burgers_p"
+    BURGERS_PSROBIN = "burgers_psr"
     DARCY = "darcy"
     HELMHOLTZ = "helmholtz"
+
 
 data_config_map: dict[DataType, DataConfig] = {
     DataType.BURGERS: BurgersData,
     DataType.BURGERS_PERIODIC: BurgersPeriodicData,
+    DataType.BURGERS_PSROBIN: BurgersPSRobinData,
     DataType.DARCY: DarcyData,
     DataType.HELMHOLTZ: HelmholtzData,
 }
@@ -227,27 +238,27 @@ class NeuralOperatorDataset:
 
 if __name__ == "__main__":
     #  Test the dataset class
-    data = NeuralOperatorDataset(DataType.HELMHOLTZ, is_cheby=False, ntrain=1000, ntest=200, batch_size=32, normalize=True, subsample=1)
+    data = NeuralOperatorDataset(DataType.BURGERS_PSROBIN, is_cheby=False, ntrain=1000, ntest=200, batch_size=32, normalize=True, subsample=1)
 
-    data_cgl = torch.load("./datasets/burgers_periodic_cgl.pt")
-    data_uni = torch.load("./datasets/burgers_periodic_uni.pt")
+    # data_cgl = torch.load("./datasets/burgers_periodic_cgl.pt")
+    # data_uni = torch.load("./datasets/burgers_periodic_uni.pt")
 
-    print(data_cgl["a"].shape)
-    data_cgl_update = {
-        "u": data_cgl["u"].unsqueeze(-1),
-        "a": data_cgl["a"].unsqueeze(-1),
-        "x": data_cgl["x"]
-    }
+    # print(data_cgl["a"].shape)
+    # data_cgl_update = {
+    #     "u": data_cgl["u"].unsqueeze(-1),
+    #     "a": data_cgl["a"].unsqueeze(-1),
+    #     "x": data_cgl["x"]
+    # }
 
-    data_uni_update = {
-        "u": data_uni["u"].unsqueeze(-1),
-        "a": data_uni["a"].unsqueeze(-1),
-        "x": data_uni["x"]
-    }
+    # data_uni_update = {
+    #     "u": data_uni["u"].unsqueeze(-1),
+    #     "a": data_uni["a"].unsqueeze(-1),
+    #     "x": data_uni["x"]
+    # }
 
-    print(data_cgl_update["a"].shape)
-    torch.save(data_cgl_update, "./datasets/burgers_periodic_cgl.pt")
-    torch.save(data_uni_update, "./datasets/burgers_periodic_uni.pt")
+    # print(data_cgl_update["a"].shape)
+    # torch.save(data_cgl_update, "./datasets/burgers_periodic_cgl.pt")
+    # torch.save(data_uni_update, "./datasets/burgers_periodic_uni.pt")
 
 
     

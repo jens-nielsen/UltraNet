@@ -47,8 +47,20 @@ class BPSPseudoSpectra(nn.Module):
     def __init__(self, in_channels, out_channels, v_modes, bandwidth, rank, bc: BoundaryType):
         super(BPSPseudoSpectra, self).__init__()
 
-        self.phi2x = phi2x_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else phi2x_neumann if bc == BoundaryType.NEUMANN else idctn 
-
+        if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
+            self.x2phi = x2phi_dirichlet
+            self.phi2x = phi2x_dirichlet 
+        elif bc == BoundaryType.NEUMANN: 
+            self.x2phi = x2phi_neumann
+            self.phi2x = phi2x_neumann 
+        elif bc == BoundaryType.ROBIN:
+            # Assume robin values are a_l, b_l, a_r, b_r 
+            S_comp_to_cheb, S_cheb_to_comp = ch.get_square_robin_transforms(v_modes, a_L = 1.513, a_R=1.540, b_L=-1, b_R=1)
+            self.x2phi = functools.partial(ch.Wrapper, [ch.dct, functools.partial(ch.cmp_robin_v, S_cheb_to_comp = S_cheb_to_comp)])
+            self.phi2x = functools.partial(ch.Wrapper, [functools.partial(ch.icmp_robin_v, S_comp_to_cheb = S_comp_to_cheb), ch.idct])
+        else:
+            self.x2phi = dctn
+            self.phi2x = idctn 
 
         self.in_channels = in_channels
         self.out_channels = out_channels

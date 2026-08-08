@@ -56,10 +56,21 @@ class OPNO1D(nn.Module):
     def __init__(self, degree, width, bc: BoundaryType):
         super(OPNO1D, self).__init__()
 
-        self.phi2x = phi2x_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else phi2x_neumann if bc == BoundaryType.NEUMANN else idctn 
-        self.x2phi = x2phi_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else x2phi_neumann if bc == BoundaryType.NEUMANN else dctn 
+        if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
+            self.x2phi = x2phi_dirichlet
+            self.phi2x = phi2x_dirichlet 
+        elif bc == BoundaryType.NEUMANN: 
+            self.x2phi = x2phi_neumann
+            self.phi2x = phi2x_neumann 
+        elif bc == BoundaryType.ROBIN:
+            # Assume robin values are a_l, b_l, a_r, b_r 
+            S_comp_to_cheb, S_cheb_to_comp = ch.get_square_robin_transforms(degree, a_L = 1.513, a_R=1.540, b_L=-1, b_R=1)
+            self.x2phi = functools.partial(ch.Wrapper, [ch.dct, functools.partial(ch.cmp_robin_v, S_cheb_to_comp = S_cheb_to_comp)])
+            self.phi2x = functools.partial(ch.Wrapper, [functools.partial(ch.icmp_robin_v, S_comp_to_cheb = S_comp_to_cheb), ch.idct])
+        else:
+            self.x2phi = dctn
+            self.phi2x = idctn 
 
-        print(self.phi2x, self.x2phi, bc)
         self.degree = degree
         self.width = width
 
@@ -103,7 +114,7 @@ class OPNO1D(nn.Module):
         x = self.fc1(x)
         x = self.acti(x)
         x = self.fc2(x)
-        x = self.phi2x(self.x2phi(x, -2), -2)
+        # x = self.phi2x(self.x2phi(x, -2), -2)
 
         return x
 

@@ -280,3 +280,93 @@ def icmp_UpperDirichlet(b):
     a[..., 0] = b[..., 0]
     a[..., -1] = -b[..., -2]
     return a
+import numpy as np
+
+def cmp_robin_v(a, S_cheb_to_comp):
+    print(a.shape, S_cheb_to_comp.shape)
+    return S_cheb_to_comp @ a
+
+
+def icmp_robin_v(a, S_comp_to_cheb):
+    return S_comp_to_cheb @ a
+
+
+def get_square_robin_transforms(N, a_L, b_L, a_R, b_R):
+    """
+    Computes the square NxN transformation matrices between the Chebyshev basis 
+    and the augmented compact basis.
+    """
+    n = np.arange(N)
+    
+    L = a_L * ((-1)**n) + b_L * ((-1)**(n+1) * n**2)
+    R = a_R * np.ones(N) + b_R * (n**2)
+    
+    # Initialize the square NxN matrix
+    S_comp_to_cheb = np.zeros((N, N))
+    
+    # 1. Fill the first N-2 columns (The homogeneous compact basis)
+    for k in range(N - 2):
+        L_k, L_kp1, L_kp2 = L[k], L[k+1], L[k+2]
+        R_k, R_kp1, R_kp2 = R[k], R[k+1], R[k+2]
+        
+        D_k = L_kp1 * R_kp2 - L_kp2 * R_kp1
+        
+        if np.abs(D_k) < 1e-14:
+            raise ValueError(f"Degenerate boundary condition for mode k={k}.")
+            
+        alpha_k = (-L_k * R_kp2 + L_kp2 * R_k) / D_k
+        beta_k  = (-L_kp1 * R_k + L_k * R_kp1) / D_k
+        
+        S_comp_to_cheb[k, k]     = 1.0
+        S_comp_to_cheb[k+1, k]   = alpha_k
+        S_comp_to_cheb[k+2, k]   = beta_k
+        
+    # 2. Fill the last 2 columns (The boundary lifters)
+    S_comp_to_cheb[N-2, N-2] = 1.0
+    S_comp_to_cheb[N-1, N-1] = 1.0
+    
+    # 3. Invert the matrix (exact inversion since it's perfectly lower triangular)
+    S_cheb_to_comp = np.linalg.inv(S_comp_to_cheb)
+    
+    return torch.tensor(S_comp_to_cheb), torch.tensor(S_cheb_to_comp)
+
+def test_square_basis_transforms():
+    N = 16
+    a_L, b_L = 1.5, -0.5
+    a_R, b_R = 2.0, 1.2
+    
+    S_forward, S_inverse = get_square_robin_transforms(N, a_L, b_L, a_R, b_R)
+    
+    # --- Test A: Lossless transformation of an ARBITRARY field ---
+    np.random.seed(42)
+    u_hat_arbitrary = np.random.randn(N)
+    
+    # Map from Chebyshev to Compact
+    c_augmented = S_inverse @ u_hat_arbitrary
+    
+    # Map back from Compact to Chebyshev
+    u_hat_recovered = S_forward @ c_augmented
+    
+    error_arbitrary = np.max(np.abs(u_hat_arbitrary - u_hat_recovered))
+    print(f"Test A (Arbitrary Field) - Recovery Error: {error_arbitrary:.2e}")
+    print(f"Notice the last two compact coeffs are non-zero: "
+          f"[{c_augmented[-2]:.2f}, {c_augmented[-1]:.2f}]\n")
+    
+    # --- Test B: Transformation of a field satisfying HOMOGENEOUS BCs ---
+    # We create one by generating random N-2 coeffs and mapping forward
+    c_homogeneous = np.zeros(N)
+    c_homogeneous[:-2] = np.random.randn(N - 2)
+    
+    # This u_hat perfectly satisfies the homogeneous boundary conditions
+    u_hat_homo = S_forward @ c_homogeneous 
+    
+    # Map back to compact coefficients
+    c_recovered = S_inverse @ u_hat_homo
+    
+    error_homo = np.max(np.abs(c_homogeneous - c_recovered))
+    print(f"Test B (Homogeneous Field) - Recovery Error: {error_homo:.2e}")
+    print(f"Notice the last two compact coeffs are exactly zero: "
+          f"[{c_recovered[-2]:.2e}, {c_recovered[-1]:.2e}]")
+
+if __name__ == "__main__":
+    test_square_basis_transforms()
