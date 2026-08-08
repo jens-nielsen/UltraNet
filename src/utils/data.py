@@ -105,6 +105,12 @@ BurgersPSRobinData = DataConfig(
     d=1,
     bc=BoundaryType.ROBIN
 )
+BurgersPSRobinSimpleData = DataConfig(
+    pth="./datasets/burgers_psrobin_simple_uni.pt",
+    cheby_pth="./datasets/burgers_psrobin_simple_cgl.pt",
+    d=1,
+    bc=BoundaryType.ROBIN
+)
 
 DarcyData = DataConfig(
     pth="./datasets/darcy_flow_uniform.pt",
@@ -122,6 +128,7 @@ class DataType(Enum):
     BURGERS = "burgers"
     BURGERS_PERIODIC = "burgers_p"
     BURGERS_PSROBIN = "burgers_psr"
+    BURGERS_PSROBIN_SIMPLE = "burgers_psr_s"
     DARCY = "darcy"
     HELMHOLTZ = "helmholtz"
 
@@ -130,6 +137,7 @@ data_config_map: dict[DataType, DataConfig] = {
     DataType.BURGERS: BurgersData,
     DataType.BURGERS_PERIODIC: BurgersPeriodicData,
     DataType.BURGERS_PSROBIN: BurgersPSRobinData,
+    DataType.BURGERS_PSROBIN_SIMPLE: BurgersPSRobinSimpleData,
     DataType.DARCY: DarcyData,
     DataType.HELMHOLTZ: HelmholtzData,
 }
@@ -202,7 +210,6 @@ class NeuralOperatorDataset:
         # u_train = u[:ntrain][..., ::subsample].unsqueeze(-1)
         # a_test = a[-ntest:][..., ::subsample].unsqueeze(-1)
         # u_test = u[-ntest:][..., ::subsample].unsqueeze(-1)
-
         self.cfg = data_config_map.get(data)
         self.d = self.cfg.d
 
