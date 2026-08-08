@@ -92,7 +92,7 @@ class Trainer:
         if not os.path.exists("./models"):
             os.makedirs("./models/")
 
-        torch.save(self.model, f"./models/{self.args.run_name}.pt")
+        torch.save(self.model.state_dict(), f"./models/{self.args.run_name}.pt")
         with open(f"./models/{self.args.run_name}.json", "w") as f:
             json.dump(config, f, indent=4, cls=self.ConfigEncoder)
 
