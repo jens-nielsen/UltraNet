@@ -283,12 +283,15 @@ def icmp_UpperDirichlet(b):
 import numpy as np
 
 def cmp_robin_v(a, S_cheb_to_comp):
-    print(a.shape, S_cheb_to_comp.shape)
-    return S_cheb_to_comp @ a
+    modes = S_cheb_to_comp.shape[0]
+    a_cmp = torch.einsum('...i,ji->...j', a[..., :modes], S_cheb_to_comp)
+    return torch.cat((a_cmp, a[..., modes:]), dim=-1)
 
 
 def icmp_robin_v(a, S_comp_to_cheb):
-    return S_comp_to_cheb @ a
+    modes = S_comp_to_cheb.shape[0]
+    a_icmp =  torch.einsum('...i,ji->...j', a[..., :modes], S_comp_to_cheb)
+    return torch.cat((a_icmp, a[..., modes:]), dim=-1)
 
 
 def get_square_robin_transforms(N, a_L, b_L, a_R, b_R):
@@ -328,7 +331,7 @@ def get_square_robin_transforms(N, a_L, b_L, a_R, b_R):
     # 3. Invert the matrix (exact inversion since it's perfectly lower triangular)
     S_cheb_to_comp = np.linalg.inv(S_comp_to_cheb)
     
-    return torch.tensor(S_comp_to_cheb), torch.tensor(S_cheb_to_comp)
+    return torch.tensor(S_comp_to_cheb, dtype=torch.float32), torch.tensor(S_cheb_to_comp, dtype=torch.float32)
 
 def test_square_basis_transforms():
     N = 16

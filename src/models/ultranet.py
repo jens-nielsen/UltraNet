@@ -56,11 +56,14 @@ class BPSPseudoSpectra(nn.Module):
         elif bc == BoundaryType.ROBIN:
             # Assume robin values are a_l, b_l, a_r, b_r 
             S_comp_to_cheb, S_cheb_to_comp = ch.get_square_robin_transforms(v_modes, a_L = 1.513, a_R=1.540, b_L=-1, b_R=1)
-            self.x2phi = functools.partial(ch.Wrapper, [ch.dct, functools.partial(ch.cmp_robin_v, S_cheb_to_comp = S_cheb_to_comp)])
-            self.phi2x = functools.partial(ch.Wrapper, [functools.partial(ch.icmp_robin_v, S_comp_to_cheb = S_comp_to_cheb), ch.idct])
+            self.register_buffer('S_comp_to_cheb', S_comp_to_cheb)
+            self.register_buffer('S_cheb_to_comp', S_cheb_to_comp)
+            self.x2phi = functools.partial(ch.Wrapper, [ch.dct, lambda x: ch.cmp_robin_v(x, S_cheb_to_comp = self.S_cheb_to_comp)])
+            self.phi2x = functools.partial(ch.Wrapper, [lambda x: ch.icmp_robin_v(x, S_comp_to_cheb = self.S_comp_to_cheb), ch.idct])
         else:
             self.x2phi = dctn
             self.phi2x = idctn 
+
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -115,8 +118,8 @@ class UltraNet1D(nn.Module):
     def __init__(self, modes, width, rank,  bc: BoundaryType):
         super(UltraNet1D, self).__init__()
 
-        self.phi2x = phi2x_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else phi2x_neumann if bc == BoundaryType.NEUMANN else idctn 
-        self.x2phi = x2phi_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else x2phi_neumann if bc == BoundaryType.NEUMANN else dctn 
+        # self.phi2x = phi2x_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else phi2x_neumann if bc == BoundaryType.NEUMANN else idctn 
+        # self.x2phi = x2phi_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else x2phi_neumann if bc == BoundaryType.NEUMANN else dctn 
 
         self.degree = modes
         self.width = width
@@ -147,7 +150,6 @@ class UltraNet1D(nn.Module):
     def forward(self, x):
 
         x = x.permute(0, 2, 1)
-
         x = torch.cat([x, self.acti(self.convl(x))], dim=1)
 
         x = x + self.acti(self.w0(x) + self.conv0(x))
@@ -162,7 +164,7 @@ class UltraNet1D(nn.Module):
         x = self.fc1(x)
         x = self.acti(x)
         x = self.fc2(x)
-        x = phi2x_neumann(x2phi_neumann(x, -2), -2)
+        # x = phi2x_neumann(x2phi_neumann(x, -2), -2)
 
         return x
 

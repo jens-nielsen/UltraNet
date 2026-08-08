@@ -16,8 +16,24 @@ class PseudoSpectra(nn.Module):
     def __init__(self, in_channels, out_channels, degree, bandwidth, bc: BoundaryType):
         super(PseudoSpectra, self).__init__()
 
-        self.phi2x = phi2x_dirichlet if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC else phi2x_neumann if bc == BoundaryType.NEUMANN else idctn 
+        if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
+            self.x2phi = x2phi_dirichlet
+            self.phi2x = phi2x_dirichlet 
+        elif bc == BoundaryType.NEUMANN: 
+            self.x2phi = x2phi_neumann
+            self.phi2x = phi2x_neumann 
+        elif bc == BoundaryType.ROBIN:
+            # Assume robin values are a_l, b_l, a_r, b_r 
+            S_comp_to_cheb, S_cheb_to_comp = ch.get_square_robin_transforms(degree, a_L = 1.513, a_R=1.540, b_L=-1, b_R=1)
+            self.register_buffer('S_comp_to_cheb', S_comp_to_cheb)
+            self.register_buffer('S_cheb_to_comp', S_cheb_to_comp)
+            self.x2phi = functools.partial(ch.Wrapper, [ch.dct, lambda x: ch.cmp_robin_v(x, S_cheb_to_comp = self.S_cheb_to_comp)])
+            self.phi2x = functools.partial(ch.Wrapper, [lambda x: ch.icmp_robin_v(x, S_comp_to_cheb = self.S_comp_to_cheb), ch.idct])
+        else:
+            self.x2phi = dctn
+            self.phi2x = idctn 
 
+        
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.degree = degree
@@ -47,7 +63,6 @@ class PseudoSpectra(nn.Module):
         out[..., : self.degree] = self.quasi_diag(
             b[..., : self.degree + 2], self.weights
         )
-
         u = self.phi2x(out, -1)
         return u
 
@@ -65,11 +80,14 @@ class OPNO1D(nn.Module):
         elif bc == BoundaryType.ROBIN:
             # Assume robin values are a_l, b_l, a_r, b_r 
             S_comp_to_cheb, S_cheb_to_comp = ch.get_square_robin_transforms(degree, a_L = 1.513, a_R=1.540, b_L=-1, b_R=1)
-            self.x2phi = functools.partial(ch.Wrapper, [ch.dct, functools.partial(ch.cmp_robin_v, S_cheb_to_comp = S_cheb_to_comp)])
-            self.phi2x = functools.partial(ch.Wrapper, [functools.partial(ch.icmp_robin_v, S_comp_to_cheb = S_comp_to_cheb), ch.idct])
+            self.register_buffer('S_comp_to_cheb', S_comp_to_cheb)
+            self.register_buffer('S_cheb_to_comp', S_cheb_to_comp)
+            self.x2phi = functools.partial(ch.Wrapper, [ch.dct, lambda x: ch.cmp_robin_v(x, S_cheb_to_comp = self.S_cheb_to_comp)])
+            self.phi2x = functools.partial(ch.Wrapper, [lambda x: ch.icmp_robin_v(x, S_comp_to_cheb = self.S_comp_to_cheb), ch.idct])
         else:
             self.x2phi = dctn
             self.phi2x = idctn 
+
 
         self.degree = degree
         self.width = width
