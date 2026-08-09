@@ -33,11 +33,16 @@ class FNOConfig(ModelConfig):
 class OPNOConfig(ModelConfig):
     modes: int | list[int]
     width: int
+    nlayers: int = None
 
     def create_model(self, d: int, bc: BoundaryType) -> torch.nn.Module:
         if d == 1:
-            from .opno import OPNO1D
-            return OPNO1D(self.modes, self.width, bc)
+            from .opno import OPNO1D, LayeredOPNO1D
+            if self.nlayers is None:
+                return OPNO1D(self.modes, self.width, bc)
+            else:
+                return LayeredOPNO1D(self.modes, self.width, bc, self.nlayers)
+
         elif d == 2:
             from .opno import OPNO2d
             return OPNO2d(degree1=self.modes[0], degree2=self.modes[1], width=self.width)
@@ -48,14 +53,36 @@ class UltraNetConfig(ModelConfig):
     modes: int | list[int]
     width: int
     rank: int
+    nlayers: int = None
 
     def create_model(self, d: int, bc: BoundaryType) -> torch.nn.Module:
         if d == 1:
-            from .ultranet import UltraNet1D
-            return UltraNet1D(self.modes, self.width, self.rank, bc)
+            from .ultranet import UltraNet1D, LayeredUltraNet1D
+            if self.nlayers is None:
+                return UltraNet1D(self.modes, self.width, self.rank, bc)
+            else:
+                return LayeredUltraNet1D(self.modes, self.width, self.rank, bc, self.nlayers)
         elif d == 2:
             from .ultranet import UltraNet2D
             return UltraNet2D(degree1=self.modes[0], degree2=self.modes[1], width=self.width, rank=self.rank)
+
+# SimpleNet model
+
+@dataclass
+class SimpleUltraNetConfig(ModelConfig):
+    modes: int | list[int]
+    width: int
+    rank: int
+
+    def create_model(self, d: int, bc: BoundaryType) -> torch.nn.Module:
+        if d == 1:
+            from .simplenet import SimpleNet1D
+            return SimpleNet1D(self.modes, self.width, self.rank, bc)
+        # elif d == 2:
+        #     from .ultranet import UltraNet2D
+        #     return UltraNet2D(degree1=self.modes[0], degree2=self.modes[1], width=self.width, rank=self.rank)
+
+
 
 # SSUltraNet model
 # 
@@ -91,13 +118,15 @@ class ModelType(Enum):
     UltraNet = "ultranet"
     SSUltraNet = "ss"
     CUltraNET = "cun"
+    SimpleNet = "simplenet"
 
 model_config_mapping: dict[ModelType, ModelConfig] = {
     ModelType.FNO: FNOConfig,
     ModelType.OPNO: OPNOConfig,
     ModelType.UltraNet: UltraNetConfig,
     ModelType.SSUltraNet: SSUltraNetConfig,
-    ModelType.CUltraNET: CUltraNetConfig
+    ModelType.CUltraNET: CUltraNetConfig,
+    ModelType.SimpleNet: SimpleUltraNetConfig
 }
 
 class NeuralOperatorModel(nn.Module):

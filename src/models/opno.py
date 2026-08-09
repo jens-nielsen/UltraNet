@@ -137,6 +137,64 @@ class OPNO1D(nn.Module):
         return x
 
 
+
+class LayeredOPNO1D(nn.Module):
+    def __init__(self, degree, width, bc: BoundaryType, nlayers: int):
+        super(LayeredOPNO1D, self).__init__()
+
+        if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
+            self.x2phi = x2phi_dirichlet
+            self.phi2x = phi2x_dirichlet 
+        elif bc == BoundaryType.NEUMANN: 
+            self.x2phi = x2phi_neumann
+            self.phi2x = phi2x_neumann 
+        elif bc == BoundaryType.ROBIN:
+            # Assume robin values are a_l, b_l, a_r, b_r 
+            S_comp_to_cheb, S_cheb_to_comp = ch.get_square_robin_transforms(degree, a_L = 1.513, a_R=1.540, b_L=-1, b_R=1)
+            self.register_buffer('S_comp_to_cheb', S_comp_to_cheb)
+            self.register_buffer('S_cheb_to_comp', S_cheb_to_comp)
+            self.x2phi = functools.partial(ch.Wrapper, [ch.dct, lambda x: ch.cmp_robin_v(x, S_cheb_to_comp = self.S_cheb_to_comp)])
+            self.phi2x = functools.partial(ch.Wrapper, [lambda x: ch.icmp_robin_v(x, S_comp_to_cheb = self.S_comp_to_cheb), ch.idct])
+        else:
+            self.x2phi = dctn
+            self.phi2x = idctn 
+
+
+        self.degree = degree
+        self.width = width
+
+        self.convs = nn.ModuleList()
+        self.ws = nn.ModuleList()
+
+        self.fc0 = nn.Linear(2, self.width)
+
+        for i in range(nlayers):
+            self.convs.append(PseudoSpectra(self.width, self.width, self.degree, 3, bc))
+            self.ws.append(nn.Conv1d(self.width, self.width, 1))
+
+        self.fc1 = nn.Linear(self.width, 128)
+        self.fc2 = nn.Linear(128, 1)
+
+    def acti(self, x):
+        return torch.nn.functional.gelu(x)
+
+    def forward(self, x):
+
+        x = self.fc0(x)
+
+        x = x.permute(0, 2, 1)
+
+        for w, conv in zip(self.ws, self.convs):
+
+            x = x + self.acti(w(x) + conv(x))
+
+        x = x.permute(0, 2, 1)
+        x = self.fc1(x)
+        x = self.acti(x)
+        x = self.fc2(x)
+
+        return x
+
 class PseudoSpectra2d(nn.Module):
     def __init__(self, in_channels, out_channels, degree1, degree2, bandwidth):
         super(PseudoSpectra2d, self).__init__()

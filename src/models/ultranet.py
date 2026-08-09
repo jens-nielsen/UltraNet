@@ -168,6 +168,48 @@ class UltraNet1D(nn.Module):
 
         return x
 
+
+class LayeredUltraNet1D(nn.Module):
+    def __init__(self, modes, width, rank,  bc: BoundaryType, nlayers: int):
+        super(LayeredUltraNet1D, self).__init__()
+
+        self.degree = modes
+        self.width = width
+        self.rank = rank
+
+        self.fc0 = nn.Linear(2, self.width)
+
+        self.convs = nn.ModuleList()
+        self.ws = nn.ModuleList()
+
+        for i in range(nlayers):
+            self.convs.append(BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank, bc))
+            self.ws.append(nn.Conv1d(self.width, self.width, 1))
+
+        self.fc1 = nn.Linear(self.width, 128)
+        self.fc2 = nn.Linear(128, 1)
+
+    def acti(self, x):
+        return nn.functional.gelu(x)
+
+    def forward(self, x):
+
+        x = self.fc0(x)
+
+        x = x.permute(0, 2, 1)
+
+        for w, conv in zip(self.ws, self.convs):
+
+            x = x + self.acti(w(x) + conv(x))
+
+        x = x.permute(0, 2, 1)
+        x = self.fc1(x)
+        x = self.acti(x)
+        x = self.fc2(x)
+        # x = phi2x_neumann(x2phi_neumann(x, -2), -2)
+
+        return x
+
 # 2D UltraNet
 
 class BPSPseudoSpectra2d(nn.Module):
