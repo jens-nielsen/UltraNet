@@ -33,6 +33,7 @@ class FNOConfig(ModelConfig):
 class OPNOConfig(ModelConfig):
     modes: int | list[int]
     width: int
+    bandwidth: int = 3
     nlayers: int = None
 
     def create_model(self, d: int, bc: BoundaryType) -> torch.nn.Module:
@@ -41,7 +42,7 @@ class OPNOConfig(ModelConfig):
             if self.nlayers is None:
                 return OPNO1D(self.modes, self.width, bc)
             else:
-                return LayeredOPNO1D(self.modes, self.width, bc, self.nlayers)
+                return LayeredOPNO1D(self.modes, self.width, bc, self.nlayers, bandwidth=self.bandwidth)
 
         elif d == 2:
             from .opno import OPNO2d
@@ -53,6 +54,7 @@ class UltraNetConfig(ModelConfig):
     modes: int | list[int]
     width: int
     rank: int
+    bandwidth: int = 3
     nlayers: int = None
 
     def create_model(self, d: int, bc: BoundaryType) -> torch.nn.Module:
@@ -61,7 +63,7 @@ class UltraNetConfig(ModelConfig):
             if self.nlayers is None:
                 return UltraNet1D(self.modes, self.width, self.rank, bc)
             else:
-                return LayeredUltraNet1D(self.modes, self.width, self.rank, bc, self.nlayers)
+                return LayeredUltraNet1D(self.modes, self.width, self.rank, bc, self.nlayers, bandwidth=self.bandwidth)
         elif d == 2:
             from .ultranet import UltraNet2D
             return UltraNet2D(degree1=self.modes[0], degree2=self.modes[1], width=self.width, rank=self.rank)

@@ -102,7 +102,7 @@ class BPSPseudoSpectra(nn.Module):
             batch_size, self.out_channels, Nx, device=u.device, dtype=torch.float32
         )
         out[..., : self.degree] = self.quasi_diag(
-            b[..., : self.degree + 2], self.weights
+            b[..., : self.degree + (self.bandwidth-1)], self.weights
         )
         L_contrib = self.tril(b[..., : self.degree])
         U_contrib = self.triu(b[..., : self.degree])
@@ -170,7 +170,7 @@ class UltraNet1D(nn.Module):
 
 
 class LayeredUltraNet1D(nn.Module):
-    def __init__(self, modes, width, rank,  bc: BoundaryType, nlayers: int):
+    def __init__(self, modes, width, rank,  bc: BoundaryType, nlayers: int, bandwidth: int):
         super(LayeredUltraNet1D, self).__init__()
 
         self.degree = modes
@@ -183,7 +183,7 @@ class LayeredUltraNet1D(nn.Module):
         self.ws = nn.ModuleList()
 
         for i in range(nlayers):
-            self.convs.append(BPSPseudoSpectra(self.width, self.width, self.degree, 3, self.rank, bc))
+            self.convs.append(BPSPseudoSpectra(self.width, self.width, self.degree, bandwidth, self.rank, bc))
             self.ws.append(nn.Conv1d(self.width, self.width, 1))
 
         self.fc1 = nn.Linear(self.width, 128)

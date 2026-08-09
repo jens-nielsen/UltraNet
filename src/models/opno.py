@@ -61,7 +61,7 @@ class PseudoSpectra(nn.Module):
             batch_size, self.out_channels, Nx, device=u.device, dtype=torch.float32
         )
         out[..., : self.degree] = self.quasi_diag(
-            b[..., : self.degree + 2], self.weights
+            b[..., : self.degree + (self.bandwidth-1)], self.weights
         )
         u = self.phi2x(out, -1)
         return u
@@ -139,7 +139,7 @@ class OPNO1D(nn.Module):
 
 
 class LayeredOPNO1D(nn.Module):
-    def __init__(self, degree, width, bc: BoundaryType, nlayers: int):
+    def __init__(self, degree, width, bc: BoundaryType, nlayers: int, bandwidth: int):
         super(LayeredOPNO1D, self).__init__()
 
         if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
@@ -169,7 +169,7 @@ class LayeredOPNO1D(nn.Module):
         self.fc0 = nn.Linear(2, self.width)
 
         for i in range(nlayers):
-            self.convs.append(PseudoSpectra(self.width, self.width, self.degree, 3, bc))
+            self.convs.append(PseudoSpectra(self.width, self.width, self.degree, bandwidth, bc))
             self.ws.append(nn.Conv1d(self.width, self.width, 1))
 
         self.fc1 = nn.Linear(self.width, 128)
