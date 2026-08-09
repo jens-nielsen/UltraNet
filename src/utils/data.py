@@ -99,6 +99,13 @@ BurgersPeriodicData = DataConfig(
     d=1,
     bc=BoundaryType.DIRICHLET
 )
+BurgersPeriodicPlusNeumannData = DataConfig(
+    pth="./datasets/burgers_nplusp_uni.pt",
+    cheby_pth="./datasets/burgers_nplusp_cgl.pt",
+    d=1,
+    bc=None
+)
+
 BurgersPSRobinData = DataConfig(
     pth="./datasets/burgers_psrobin_uni.pt",
     cheby_pth="./datasets/burgers_psrobin_cgl.pt",
@@ -127,6 +134,7 @@ HelmholtzData = DataConfig(
 class DataType(Enum):
     BURGERS = "burgers"
     BURGERS_PERIODIC = "burgers_p"
+    BURGERS_PERIODIC_NEUMANN = "burgers_npp"
     BURGERS_PSROBIN = "burgers_psr"
     BURGERS_PSROBIN_SIMPLE = "burgers_psr_s"
     DARCY = "darcy"
@@ -137,6 +145,7 @@ data_config_map: dict[DataType, DataConfig] = {
     DataType.BURGERS: BurgersData,
     DataType.BURGERS_PERIODIC: BurgersPeriodicData,
     DataType.BURGERS_PSROBIN: BurgersPSRobinData,
+    DataType.BURGERS_PERIODIC_NEUMANN: BurgersPeriodicPlusNeumannData,
     DataType.BURGERS_PSROBIN_SIMPLE: BurgersPSRobinSimpleData,
     DataType.DARCY: DarcyData,
     DataType.HELMHOLTZ: HelmholtzData,
