@@ -125,6 +125,12 @@ DarcyNeumannData = DataConfig(
     d=1,
     bc=BoundaryType.NEUMANN
 )
+DarcyNeumannAData = DataConfig(
+    pth="./datasets/darcy_neumann_a_uni.pt",
+    cheby_pth="./datasets/darcy_neumann_a_cgl.pt",
+    d=1,
+    bc=BoundaryType.NEUMANN
+)
 DarcyData = DataConfig(
     pth="./datasets/darcy_flow_uniform.pt",
     cheby_pth="./datasets/darcy_flow_chebyshev.pt",
@@ -144,6 +150,7 @@ class DataType(Enum):
     BURGERS_PSROBIN = "burgers_psr"
     BURGERS_PSROBIN_SIMPLE = "burgers_psr_s"
     DARCY_NEUMANN = "darcy_n"
+    DARCY_NEUMANN_A = "darcy_n_a"
     DARCY = "darcy"
     HELMHOLTZ = "helmholtz"
 
@@ -155,6 +162,7 @@ data_config_map: dict[DataType, DataConfig] = {
     DataType.BURGERS_PERIODIC_NEUMANN: BurgersPeriodicPlusNeumannData,
     DataType.BURGERS_PSROBIN_SIMPLE: BurgersPSRobinSimpleData,
     DataType.DARCY_NEUMANN: DarcyNeumannData,
+    DataType.DARCY_NEUMANN_A: DarcyNeumannAData,
     DataType.DARCY: DarcyData,
     DataType.HELMHOLTZ: HelmholtzData,
 }
