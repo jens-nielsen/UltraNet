@@ -18,11 +18,15 @@ class ModelConfig(ABC):
 class FNOConfig(ModelConfig):
     modes: int | list[int]
     width: int
+    nlayers: int = None
 
     def create_model(self, d: int, o_d: int, bc: BoundaryType) -> torch.nn.Module:
         if d == 1:
-            from .fno import FNO1d
-            return FNO1d(modes1=self.modes, width=self.width, output_dim=o_d)
+            from .fno import FNO1d, LayeredFNO1d
+            if self.nlayers is None:
+                return FNO1d(modes1=self.modes, width=self.width, output_dim=o_d)
+            else:
+                return LayeredFNO1d(modes1=self.modes, width=self.width, output_dim=o_d, nlayers=self.nlayers)
         elif d == 2:
             from .fno import FNO2d
             return FNO2d(modes1=self.modes[0], modes2=self.modes[1], width=self.width)
