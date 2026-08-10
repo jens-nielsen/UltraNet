@@ -157,7 +157,6 @@ HelmholtzData = DataConfig(
     cheby_pth="./datasets/helmholtz_cgl.pt",
     d=1,
     o_d=2,
-    bc=BoundaryType.DIRICHLET
 )
 
 class DataType(Enum):
