@@ -56,7 +56,7 @@ class SpectralConv1d(nn.Module):
 
 
 class FNO1d(nn.Module):
-    def __init__(self, modes1, width):
+    def __init__(self, modes1, width, output_dim):
         super(FNO1d, self).__init__()
 
         """
@@ -86,7 +86,7 @@ class FNO1d(nn.Module):
         self.w3 = nn.Conv1d(self.width, self.width, 1)
 
         self.fc1 = nn.Linear(self.width, 128)
-        self.fc2 = nn.Linear(128, 1)
+        self.fc2 = nn.Linear(128, output_dim)
 
     def forward(self, x):
 

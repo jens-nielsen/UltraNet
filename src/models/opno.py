@@ -68,7 +68,7 @@ class PseudoSpectra(nn.Module):
 
 
 class OPNO1D(nn.Module):
-    def __init__(self, degree, width, bc: BoundaryType):
+    def __init__(self, degree, width, bc: BoundaryType, output_dim: int):
         super(OPNO1D, self).__init__()
 
         if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
@@ -109,7 +109,7 @@ class OPNO1D(nn.Module):
         self.w3 = nn.Conv1d(self.width, self.width, 1)
 
         self.fc1 = nn.Linear(self.width, 128)
-        self.fc2 = nn.Linear(128, 1)
+        self.fc2 = nn.Linear(128, output_dim)
 
     def acti(self, x):
         return torch.nn.functional.gelu(x)
@@ -139,7 +139,7 @@ class OPNO1D(nn.Module):
 
 
 class LayeredOPNO1D(nn.Module):
-    def __init__(self, degree, width, bc: BoundaryType, nlayers: int, bandwidth: int):
+    def __init__(self, degree, width, bc: BoundaryType, nlayers: int, bandwidth: int, output_dim: int):
         super(LayeredOPNO1D, self).__init__()
 
         if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
@@ -173,7 +173,7 @@ class LayeredOPNO1D(nn.Module):
             self.ws.append(nn.Conv1d(self.width, self.width, 1))
 
         self.fc1 = nn.Linear(self.width, 128)
-        self.fc2 = nn.Linear(128, 1)
+        self.fc2 = nn.Linear(128, output_dim)
 
     def acti(self, x):
         return torch.nn.functional.gelu(x)

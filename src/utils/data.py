@@ -83,6 +83,7 @@ class DataConfig:
     pth: str
     cheby_pth: str | None
     d: int
+    o_d: int = 1 # Output dimensionality
     bc: BoundaryType = None
 
 
@@ -90,6 +91,7 @@ BurgersData = DataConfig(
     pth="./datasets/burgers_neumann_uniform.pt",
     cheby_pth="./datasets/burgers_neumann_chebyshev.pt",
     d=1,
+    o_d=1,
     bc=BoundaryType.NEUMANN
 
 )
@@ -97,12 +99,14 @@ BurgersPeriodicData = DataConfig(
     pth="./datasets/burgers_periodic_uni.pt",
     cheby_pth="./datasets/burgers_periodic_cgl.pt",
     d=1,
+    o_d=1,
     bc=BoundaryType.DIRICHLET
 )
 BurgersPeriodicPlusNeumannData = DataConfig(
     pth="./datasets/burgers_nplusp_uni.pt",
     cheby_pth="./datasets/burgers_nplusp_cgl.pt",
     d=1,
+    o_d=1,
     bc=None
 )
 
@@ -110,12 +114,14 @@ BurgersPSRobinData = DataConfig(
     pth="./datasets/burgers_psrobin_uni.pt",
     cheby_pth="./datasets/burgers_psrobin_cgl.pt",
     d=1,
+    o_d=1,
     bc=BoundaryType.ROBIN
 )
 BurgersPSRobinSimpleData = DataConfig(
     pth="./datasets/burgers_psrobin_simple_uni.pt",
     cheby_pth="./datasets/burgers_psrobin_simple_cgl.pt",
     d=1,
+    o_d=1,
     bc=BoundaryType.ROBIN
 )
 
@@ -123,24 +129,35 @@ DarcyNeumannData = DataConfig(
     pth="./datasets/darcy_neumann_uni.pt",
     cheby_pth="./datasets/darcy_neumann_cgl.pt",
     d=1,
+    o_d=1,
     bc=BoundaryType.NEUMANN
 )
 DarcyNeumannAData = DataConfig(
     pth="./datasets/darcy_neumann_a_uni.pt",
     cheby_pth="./datasets/darcy_neumann_a_cgl.pt",
     d=1,
+    o_d=1,
     bc=BoundaryType.NEUMANN
 )
 DarcyData = DataConfig(
     pth="./datasets/darcy_flow_uniform.pt",
     cheby_pth="./datasets/darcy_flow_chebyshev.pt",
     d=2,
+    o_d=1,
     bc=BoundaryType.DIRICHLET
 )
+# HelmholtzData = DataConfig(
+#     pth="./datasets/Helmholtz_uniform_128.pt",
+#     cheby_pth="./datasets/Helmholtz_chebyshev_128.pt",
+#     d=2,
+# )
+
 HelmholtzData = DataConfig(
-    pth="./datasets/Helmholtz_uniform_128.pt",
-    cheby_pth="./datasets/Helmholtz_chebyshev_128.pt",
-    d=2,
+    pth="./datasets/helmholtz_uni.pt",
+    cheby_pth="./datasets/helmholtz_cgl.pt",
+    d=1,
+    o_d=2,
+    bc=BoundaryType.DIRICHLET
 )
 
 class DataType(Enum):
