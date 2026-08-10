@@ -72,7 +72,7 @@ class UltraNetConfig(ModelConfig):
             if self.nlayers is None:
                 return UltraNet1D(self.modes, self.width, self.rank, bc, o_d)
             else:
-                return LayeredUltraNet1D(self.modes, self.width, self.rank, bc, self.nlayers, bandwidth=self.bandwidth)
+                return LayeredUltraNet1D(self.modes, self.width, self.rank, bc, self.nlayers, bandwidth=self.bandwidth, output_dim=o_d)
         elif d == 2:
             from .ultranet import UltraNet2D
             return UltraNet2D(degree1=self.modes[0], degree2=self.modes[1], width=self.width, rank=self.rank)
