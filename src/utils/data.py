@@ -146,17 +146,19 @@ DarcyData = DataConfig(
     o_d=1,
     bc=BoundaryType.DIRICHLET
 )
-# HelmholtzData = DataConfig(
-#     pth="./datasets/Helmholtz_uniform_128.pt",
-#     cheby_pth="./datasets/Helmholtz_chebyshev_128.pt",
-#     d=2,
-# )
 
 HelmholtzData = DataConfig(
     pth="./datasets/helmholtz_uni.pt",
     cheby_pth="./datasets/helmholtz_cgl.pt",
     d=1,
     o_d=2,
+)
+
+Helmholtz2DData = DataConfig(
+    pth="./datasets/Helmholtz2D_uni.pt",
+    cheby_pth="./datasets/Helmholtz2D_cgl.pt",
+    d=2,
+    o_d=2
 )
 
 class DataType(Enum):
@@ -169,6 +171,7 @@ class DataType(Enum):
     DARCY_NEUMANN_A = "darcy_n_a"
     DARCY = "darcy"
     HELMHOLTZ = "helmholtz"
+    HELMHOLTZ_2D= "helmholtz2D"
 
 
 data_config_map: dict[DataType, DataConfig] = {
@@ -181,6 +184,7 @@ data_config_map: dict[DataType, DataConfig] = {
     DataType.DARCY_NEUMANN_A: DarcyNeumannAData,
     DataType.DARCY: DarcyData,
     DataType.HELMHOLTZ: HelmholtzData,
+    DataType.HELMHOLTZ_2D: Helmholtz2DData,
 }
 
 def generate_grid(sizes: int | list[int], cheby: bool) -> torch.Tensor:
@@ -256,7 +260,18 @@ class NeuralOperatorDataset:
 
         pth = self.cfg.cheby_pth if is_cheby else self.cfg.pth
         data = torch.load(pth)
-
+        # print(data["X"].shape)
+        # data_uni = {
+        #     "a": data["X"].permute(0, 2, 3, 1),
+        #     "u": data["Y"].permute(0, 2, 3, 1)
+        # }
+        # data_cgl = {
+        #     "a": data["X_cheb"].permute(0, 2, 3, 1),
+        #     "u": data["Y_cheb"].permute(0, 2, 3, 1)
+        # }
+        # torch.save(data_uni, "./datasets/Helmholtz2D_uni.pt")
+        # torch.save(data_cgl, "./datasets/Helmholtz2D_cgl.pt")
+        # assert False
         subsample_index = [slice(None, None, subsample),] * self.d
         a_train = data['a'][:ntrain][:, *subsample_index].to(torch.float32)
         u_train = data['u'][:ntrain][:, *subsample_index].to(torch.float32)
@@ -286,7 +301,7 @@ class NeuralOperatorDataset:
 
 if __name__ == "__main__":
     #  Test the dataset class
-    data = NeuralOperatorDataset(DataType.BURGERS_PSROBIN, is_cheby=False, ntrain=1000, ntest=200, batch_size=32, normalize=True, subsample=1)
+    data = NeuralOperatorDataset(DataType.HELMHOLTZ_2D, is_cheby=False, ntrain=1000, ntest=200, batch_size=32, normalize=True, subsample=1)
 
     # data_cgl = torch.load("./datasets/burgers_periodic_cgl.pt")
     # data_uni = torch.load("./datasets/burgers_periodic_uni.pt")

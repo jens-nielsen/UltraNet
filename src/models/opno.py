@@ -276,3 +276,56 @@ class OPNO2d(nn.Module):
         x = self.fc2(x)
         x = phi2x_dirichlet(x2phi_dirichlet(x, [1, 2]), [1, 2])
         return x
+
+
+class LayeredOPNO2d(nn.Module):
+    def __init__(self, degree1, degree2, width, bc: BoundaryType, nlayers: int, bandwidth: int, output_dim: int):
+        super(LayeredOPNO2d, self).__init__()
+
+        if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
+            self.x2phi = x2phi_dirichlet
+            self.phi2x = phi2x_dirichlet 
+        elif bc == BoundaryType.NEUMANN: 
+            self.x2phi = x2phi_neumann
+            self.phi2x = phi2x_neumann 
+        elif bc == BoundaryType.ROBIN:
+            # Assume robin values are a_l, b_l, a_r, b_r 
+            raise NotImplementedError
+        else:
+            self.x2phi = dctn
+            self.phi2x = idctn 
+
+        self.degree1 = degree1
+        self.degree2 = degree2
+        self.width = width
+
+        self.fc0 = nn.Linear(3, self.width)
+
+        self.convs = nn.ModuleList()
+        self.ws = nn.ModuleList()
+
+        for i in range(nlayers):
+            self.convs.append(PseudoSpectra2d(self.width, self.width, self.degree1, self.degree2, bandwidth=bandwidth))
+            self.ws.append(nn.Conv2d(self.width, self.width, 1))
+
+        self.fc1 = nn.Linear(self.width, 128)
+        self.fc2 = nn.Linear(128, output_dim)
+
+    def acti(self, x):
+        return torch.nn.functional.gelu(x)
+
+    def forward(self, x):
+        # x : (batches, nx, ny, [Einc(x, y), cnt(x, y), x, y])
+        x = self.fc0(x)
+
+        x = x.permute(0, 3, 1, 2)
+
+        for conv, w in zip(self.convs, self.ws):
+            x = x+self.acti(w(x) + conv(x))
+
+        x = x.permute(0, 2, 3, 1)
+        x = self.fc1(x)
+        x = self.acti(x)
+        x = self.fc2(x)
+        x = phi2x_dirichlet(x2phi_dirichlet(x, [1, 2]), [1, 2])
+        return x

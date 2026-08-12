@@ -28,8 +28,8 @@ class FNOConfig(ModelConfig):
             else:
                 return LayeredFNO1d(modes1=self.modes, width=self.width, output_dim=o_d, nlayers=self.nlayers)
         elif d == 2:
-            from .fno import FNO2d
-            return FNO2d(modes1=self.modes[0], modes2=self.modes[1], width=self.width)
+            from .fno import FNO2d, LayeredFNO2d
+            return LayeredFNO2d(modes1=self.modes[0], modes2=self.modes[1], width=self.width, output_dim=o_d, nlayers=self.nlayers)
     
 
 # OPNO model
@@ -54,8 +54,8 @@ class OPNOConfig(ModelConfig):
                                      output_dim=o_d)
 
         elif d == 2:
-            from .opno import OPNO2d
-            return OPNO2d(degree1=self.modes[0], degree2=self.modes[1], width=self.width)
+            from .opno import OPNO2d, LayeredOPNO2d
+            return LayeredOPNO2d(degree1=self.modes[0], degree2=self.modes[1], width=self.width, bandwidth=self.bandwidth, bc=bc, output_dim=o_d, nlayers=self.nlayers)
         
 # UltraNet model
 @dataclass
@@ -74,7 +74,8 @@ class UltraNetConfig(ModelConfig):
             else:
                 return LayeredUltraNet1D(self.modes, self.width, self.rank, bc, self.nlayers, bandwidth=self.bandwidth, output_dim=o_d)
         elif d == 2:
-            from .ultranet import UltraNet2D
+            from .ultranet import UltraNet2D, LayeredUltraNet2D
+            return LayeredUltraNet2D(degree1=self.modes[0], degree2=self.modes[1], width=self.width, rank=self.rank, bandwidth=self.bandwidth, output_dim=o_d, nlayers=self.nlayers, bc=bc)
             return UltraNet2D(degree1=self.modes[0], degree2=self.modes[1], width=self.width, rank=self.rank)
 
 # SimpleNet model
@@ -89,13 +90,6 @@ class SimpleUltraNetConfig(ModelConfig):
         if d == 1:
             from .simplenet import SimpleNet1D
             return SimpleNet1D(self.modes, self.width, self.rank, bc)
-
-        else:
-            raise NotImplementedError
-        # elif d == 2:
-        #     from .ultranet import UltraNet2D
-        #     return UltraNet2D(degree1=self.modes[0], degree2=self.modes[1], width=self.width, rank=self.rank)
-
 
 
 # SSUltraNet model
