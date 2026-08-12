@@ -196,8 +196,21 @@ class LayeredOPNO1D(nn.Module):
         return x
 
 class PseudoSpectra2d(nn.Module):
-    def __init__(self, in_channels, out_channels, degree1, degree2, bandwidth):
+    def __init__(self, in_channels, out_channels, degree1, degree2, bandwidth, bc: BoundaryType):
         super(PseudoSpectra2d, self).__init__()
+
+        if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
+            self.x2phi = x2phi_dirichlet
+            self.phi2x = phi2x_dirichlet 
+        elif bc == BoundaryType.NEUMANN: 
+            self.x2phi = x2phi_neumann
+            self.phi2x = phi2x_neumann 
+        elif bc == BoundaryType.ROBIN:
+            # Assume robin values are a_l, b_l, a_r, b_r 
+            raise NotImplementedError
+        else:
+            self.x2phi = dctn
+            self.phi2x = idctn 
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -226,14 +239,14 @@ class PseudoSpectra2d(nn.Module):
             self.quasi_diag_mul2d(a[..., :self.degree1+2, :self.degree2+2], self.weights).reshape(
                 batch_size, self.out_channels, self.degree1, self.degree2)
 
-        u = phi2x_dirichlet(b, [-1, -2])
+        u = self.phi2x(b, [-1, -2])
         return u
 
 
 class OPNO2d(nn.Module):
     def __init__(self, degree1, degree2, width):
         super(OPNO2d, self).__init__()
-
+        
         self.degree1 = degree1
         self.degree2 = degree2
         self.width = width
@@ -305,7 +318,7 @@ class LayeredOPNO2d(nn.Module):
         self.ws = nn.ModuleList()
 
         for i in range(nlayers):
-            self.convs.append(PseudoSpectra2d(self.width, self.width, self.degree1, self.degree2, bandwidth=bandwidth))
+            self.convs.append(PseudoSpectra2d(self.width, self.width, self.degree1, self.degree2, bandwidth=bandwidth, bc=bc))
             self.ws.append(nn.Conv2d(self.width, self.width, 1))
 
         self.fc1 = nn.Linear(self.width, 128)
@@ -327,5 +340,5 @@ class LayeredOPNO2d(nn.Module):
         x = self.fc1(x)
         x = self.acti(x)
         x = self.fc2(x)
-        x = phi2x_dirichlet(x2phi_dirichlet(x, [1, 2]), [1, 2])
+        x = self.phi2x(self.x2phi(x, [1, 2]), [1, 2])
         return x

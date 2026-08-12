@@ -223,13 +223,7 @@ class BPSPseudoSpectra2d(nn.Module):
             self.x2phi = x2phi_neumann
             self.phi2x = phi2x_neumann 
         elif bc == BoundaryType.ROBIN:
-            # Assume robin values are a_l, b_l, a_r, b_r 
             raise NotImplementedError
-            # S_comp_to_cheb, S_cheb_to_comp = ch.get_square_robin_transforms(v_modes, a_L = 1.513, a_R=1.540, b_L=-1, b_R=1)
-            # self.register_buffer('S_comp_to_cheb', S_comp_to_cheb)
-            # self.register_buffer('S_cheb_to_comp', S_cheb_to_comp)
-            # self.x2phi = functools.partial(ch.Wrapper, [ch.dct, lambda x: ch.cmp_robin_v(x, S_cheb_to_comp = self.S_cheb_to_comp)])
-            # self.phi2x = functools.partial(ch.Wrapper, [lambda x: ch.icmp_robin_v(x, S_comp_to_cheb = self.S_comp_to_cheb), ch.idct])
         else:
             self.x2phi = dctn
             self.phi2x = idctn 
@@ -286,7 +280,7 @@ class BPSPseudoSpectra2d(nn.Module):
             batch_size, self.out_channels, self.degree1, self.degree2
         )
 
-        u = phi2x_dirichlet(b, [-1, -2])
+        u = self.phi2x(b, [-1, -2])
         return u
 
 
