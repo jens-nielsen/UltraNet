@@ -122,7 +122,6 @@ class CUltraNetConfig(ModelConfig):
 class UltraMatrixConfig(ModelConfig):
     ind: int
     modes: int | list[int]
-    width: int
     rank: int
 
     def create_model(self, d: int, o_d: int, bc: BoundaryType) -> torch.nn.Module:
