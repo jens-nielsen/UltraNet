@@ -101,6 +101,8 @@ class BPSPseudoSpectra(nn.Module):
         # x : (batches, nx, features)
         batch_size, channels, Nx = u.shape
 
+        u = u.flip(dims=[-1]) # To correct for DCT inverse transform -> u_cheb[0]
+
         b = dctn(u, -1)
 
         out = torch.zeros(
@@ -115,6 +117,8 @@ class BPSPseudoSpectra(nn.Module):
         out[..., : self.degree] += L_contrib + U_contrib
 
         u = self.phi2x(out, -1)
+
+        u = u.flip(dims=[-1])
 
         return u 
 

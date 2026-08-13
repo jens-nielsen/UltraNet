@@ -12,4 +12,6 @@ class UltraMatrix(torch.nn.Module):
     def forward(self, x):
         x = x[..., 0:1] # Ignore posiitonal encodings
         x = x.permute(0, 2, 1)
-        return self.matrix(x)
+        x = self.matrix(x)
+        x = x.permute(0, 2, 1)
+        return x
