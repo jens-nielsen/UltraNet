@@ -9,6 +9,8 @@ x2phi_neumann = functools.partial(ch.Wrapper, [ch.dct, ch.cmp_neumann])
 phi2x_neumann = functools.partial(ch.Wrapper, [ch.icmp_neumann, ch.idct])
 x2phi_dirichlet = functools.partial(ch.Wrapper, [ch.dct, ch.cmp])
 phi2x_dirichlet = functools.partial(ch.Wrapper, [ch.icmp, ch.idct])
+x2phi_dirichlet_left = functools.partial(ch.Wrapper, [ch.dct, ch.cheb_to_shen_left])
+phi2x_dirichlet_left = functools.partial(ch.Wrapper, [ch.shen_to_cheb_left, ch.idct])
 idctn = functools.partial(ch.Wrapper, [ch.idct])
 dctn = functools.partial(ch.Wrapper, [ch.dct])
 
@@ -60,6 +62,9 @@ class BPSPseudoSpectra(nn.Module):
             self.register_buffer('S_cheb_to_comp', S_cheb_to_comp)
             self.x2phi = functools.partial(ch.Wrapper, [ch.dct, lambda x: ch.cmp_robin_v(x, S_cheb_to_comp = self.S_cheb_to_comp)])
             self.phi2x = functools.partial(ch.Wrapper, [lambda x: ch.icmp_robin_v(x, S_comp_to_cheb = self.S_comp_to_cheb), ch.idct])
+        elif bc == BoundaryType.DIRICHLET_LEFT:
+            self.x2phi = x2phi_dirichlet_left
+            self.phi2x = phi2x_dirichlet_left
         else:
             self.x2phi = dctn
             self.phi2x = idctn 

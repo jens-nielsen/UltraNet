@@ -77,6 +77,7 @@ class BoundaryType(Enum):
     PERIODIC = "p"
     NEUMANN = "n"
     DIRICHLET = "d"
+    DIRICHLET_LEFT = "d_left"
     ROBIN = "r"
 @dataclass
 class DataConfig:
@@ -161,6 +162,59 @@ Helmholtz2DData = DataConfig(
     o_d=2
 )
 
+# ODE TEST
+
+ODE1DData1 = DataConfig(
+    pth="./datasets/ode1D_1_uniform.pt",
+    cheby_pth="./datasets/ode1D_1_chebyshev.pt",
+    d=1,
+    o_d=1,
+    bc=BoundaryType.DIRICHLET_LEFT
+)
+ODE1DData2 = DataConfig(
+    pth="./datasets/ode1D_2_uniform.pt",
+    cheby_pth="./datasets/ode1D_2_chebyshev.pt",
+    d=1,
+    o_d=1,
+    bc=BoundaryType.DIRICHLET_LEFT
+)
+ODE1DData4 = DataConfig(
+    pth="./datasets/ode1D_4_uniform.pt",
+    cheby_pth="./datasets/ode1D_4_chebyshev.pt",
+    d=1,
+    o_d=1,
+    bc=BoundaryType.DIRICHLET_LEFT
+)
+ODE1DData8 = DataConfig(
+    pth="./datasets/ode1D_8_uniform.pt",
+    cheby_pth="./datasets/ode1D_8_chebyshev.pt",
+    d=1,
+    o_d=1,
+    bc=BoundaryType.DIRICHLET_LEFT
+)
+ODE1DData16 = DataConfig(
+    pth="./datasets/ode1D_16_uniform.pt",
+    cheby_pth="./datasets/ode1D_16_chebyshev.pt",
+    d=1,
+    o_d=1,
+    bc=BoundaryType.DIRICHLET_LEFT
+)
+ODE1DData32 = DataConfig(
+    pth="./datasets/ode1D_32_uniform.pt",
+    cheby_pth="./datasets/ode1D_32_chebyshev.pt",
+    d=1,
+    o_d=1,
+    bc=BoundaryType.DIRICHLET_LEFT
+)
+ODE1DData64 = DataConfig(
+    pth="./datasets/ode1D_64_uniform.pt",
+    cheby_pth="./datasets/ode1D_64_chebyshev.pt",
+    d=1,
+    o_d=1,
+    bc=BoundaryType.DIRICHLET_LEFT
+)
+
+
 class DataType(Enum):
     BURGERS = "burgers"
     BURGERS_PERIODIC = "burgers_p"
@@ -174,6 +228,15 @@ class DataType(Enum):
     HELMHOLTZ_2D= "helmholtz2D"
 
 
+    ODE1D1="ode1"
+    ODE1D2="ode2"
+    ODE1D4="ode4"
+    ODE1D8="ode8"
+    ODE1D16="ode16"
+    ODE1D32="ode32"
+    ODE1D64="ode64"
+
+
 data_config_map: dict[DataType, DataConfig] = {
     DataType.BURGERS: BurgersData,
     DataType.BURGERS_PERIODIC: BurgersPeriodicData,
@@ -185,6 +248,14 @@ data_config_map: dict[DataType, DataConfig] = {
     DataType.DARCY: DarcyData,
     DataType.HELMHOLTZ: HelmholtzData,
     DataType.HELMHOLTZ_2D: Helmholtz2DData,
+
+    DataType.ODE1D1: ODE1DData1,
+    DataType.ODE1D2: ODE1DData2,
+    DataType.ODE1D4: ODE1DData4,
+    DataType.ODE1D8: ODE1DData8,
+    DataType.ODE1D16: ODE1DData16,
+    DataType.ODE1D32: ODE1DData32,
+    DataType.ODE1D64: ODE1DData64,
 }
 
 def generate_grid(sizes: int | list[int], cheby: bool) -> torch.Tensor:

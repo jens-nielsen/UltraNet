@@ -53,6 +53,53 @@ def cmp_decrease(a):
     return b
 
 
+
+
+def shen_to_cheb_left(b: torch.Tensor) -> torch.Tensor:
+    """Converts Shen basis coefficients b (for u(-1)=0) to standard Chebyshev.
+
+    coefficients a.
+
+    Args:
+        b: Tensor of shape (..., Nx) where the last element is padded with 0,
+           or shape (..., Nx-1).
+
+    Returns:
+        a: Standard Chebyshev coefficients of shape (..., Nx) satisfying
+        u(-1)=0.
+    """
+    Nx = b.shape[-1]
+    a = torch.zeros_like(b)
+
+    # a_k = b_k + b_{k-1}
+    a[..., :-1] += b[..., :-1]
+    a[..., 1:] += b[..., :-1]
+    return a
+
+def cheb_to_shen_left(a: torch.Tensor) -> torch.Tensor:
+    """Converts standard Chebyshev coefficients a (satisfying u(-1)=0) to Shen basis coefficients b.
+
+    Args:
+        a: Chebyshev coefficients of shape (..., Nx)
+
+    Returns:
+        b: Shen coefficients of shape (..., Nx) with b[..., -1] = 0.
+    """
+    Nx = a.shape[-1]
+    device, dtype = a.device, a.dtype
+
+    # Generate alternating sign pattern [1, -1, 1, -1, ...] safely without float modulo
+    sgn = torch.ones(Nx - 1, device=device, dtype=dtype)
+    sgn[1::2] = -1.0 
+
+    # b_k = (-1)^k * cumsum( (-1)^j * a_j )
+    b = torch.zeros_like(a)
+    a_alt = a[..., :-1] * sgn
+    b[..., :-1] = torch.cumsum(a_alt, dim=-1) * sgn
+
+    return b
+
+
 def cmp_neumann(a):
     Nx = a.shape[-1]
     fac = torch.linspace(0, Nx - 1, Nx, dtype=a.dtype, device=a.device) ** 2
