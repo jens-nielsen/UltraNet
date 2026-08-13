@@ -117,7 +117,21 @@ class CUltraNetConfig(ModelConfig):
             from .channel_ultranet import ChannelUltraNet1D
             return ChannelUltraNet1D(modes=self.modes, width=self.width, rank=self.rank, bc=bc)
         
+
+@dataclass
+class UltraMatrixConfig(ModelConfig):
+    ind: int
+    modes: int | list[int]
+    width: int
+    rank: int
+
+    def create_model(self, d: int, o_d: int, bc: BoundaryType) -> torch.nn.Module:
+        if d == 1:
+            from .ultramatrix import UltraMatrix
+            return UltraMatrix(self.ind, out_dim=o_d, modes=self.modes, rank= self.rank, bc=bc)
         
+        
+ 
  
 
 class ModelType(Enum):
@@ -127,6 +141,7 @@ class ModelType(Enum):
     SSUltraNet = "ss"
     CUltraNET = "cun"
     SimpleNet = "simplenet"
+    UltraMatrix = "ultramatrix"
 
 model_config_mapping: dict[ModelType, ModelConfig] = {
     ModelType.FNO: FNOConfig,
@@ -134,7 +149,8 @@ model_config_mapping: dict[ModelType, ModelConfig] = {
     ModelType.UltraNet: UltraNetConfig,
     ModelType.SSUltraNet: SSUltraNetConfig,
     ModelType.CUltraNET: CUltraNetConfig,
-    ModelType.SimpleNet: SimpleUltraNetConfig
+    ModelType.SimpleNet: SimpleUltraNetConfig,
+    ModelType.UltraMatrix: UltraMatrixConfig
 }
 
 class NeuralOperatorModel(nn.Module):
