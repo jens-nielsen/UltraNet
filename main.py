@@ -15,6 +15,7 @@ if __name__ == "__main__":
     parser.add_argument('--subsample', type=int, default=1, help='Subsample factor for training data')
     parser.add_argument('--arg', action='append', help='Enter items as model_arg=value')
     parser.add_argument('--nepochs', type=int, default=100, help='Number of training epochs')
+    parser.add_argument('--step_size', type=int, default=100, help='Number of LR step size')
     parser.add_argument('--ntrain', type=int, default=1000, help='Number of training samples')
     parser.add_argument('--ntest', type=int, default=200, help='Number of test samples')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training')
@@ -43,7 +44,7 @@ if __name__ == "__main__":
 
     # Initialize optimizer and scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.5)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.5)
 
     # Initialize loss function
     loss_fn = LpLoss(size_average=False)

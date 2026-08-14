@@ -272,6 +272,8 @@ class BPSPseudoSpectra2d(nn.Module):
     def forward(self, u):
         batch_size, width, Nx, Ny = u.shape
 
+        u = u.flip(dims=[-1, -2])
+
         a = dctn(u, [-1, -2])
 
         b = torch.zeros(

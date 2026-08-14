@@ -127,8 +127,9 @@ def build_shen_ultraspherical_operator(a_func, N: int, num_a_modes: int = 32):
 # Verification & Test Script
 # ======================================================================
 if __name__ == "__main__":
+
     # Test problem: u'(x) + (x^2 + 1) u(x) = f(x),  x in (0, 1), u(0) = 0
-    poly=1
+    poly=4
     def a_fn(x):
         left_shift = 0.5
         return 1/(1+left_shift)**poly*((x+left_shift)**poly + (x+left_shift)**(poly-1))
@@ -202,7 +203,7 @@ if __name__ == "__main__":
 
     # 3. Evaluate solution and flip back to Left-to-Right (x = 0 -> 1)
     ultra_u = phi2x_dirichlet_left(out, 0).flip(dims=[-1])
-
+    print(torch.mean(torch.abs(ultra_u-u_i)))
     print(loss(ultra_u[None], u_i[None]))
 
     import matplotlib.pyplot as plt

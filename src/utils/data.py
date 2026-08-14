@@ -215,6 +215,14 @@ ODE1DData64 = DataConfig(
 )
 
 
+ODE1DData2_ = DataConfig(
+    pth="./datasets/ode1D_2_uniform_2.pt",
+    cheby_pth="./datasets/ode1D_2_chebyshev_2.pt",
+    d=1,
+    o_d=1,
+    bc=BoundaryType.DIRICHLET_LEFT
+)
+
 class DataType(Enum):
     BURGERS = "burgers"
     BURGERS_PERIODIC = "burgers_p"
@@ -237,6 +245,9 @@ class DataType(Enum):
     ODE1D64="ode64"
 
 
+    ODE1D2_="ode2"
+
+
 data_config_map: dict[DataType, DataConfig] = {
     DataType.BURGERS: BurgersData,
     DataType.BURGERS_PERIODIC: BurgersPeriodicData,
@@ -256,6 +267,9 @@ data_config_map: dict[DataType, DataConfig] = {
     DataType.ODE1D16: ODE1DData16,
     DataType.ODE1D32: ODE1DData32,
     DataType.ODE1D64: ODE1DData64,
+
+
+    DataType.ODE1D2_: ODE1DData2_,
 }
 
 def generate_grid(sizes: int | list[int], cheby: bool) -> torch.Tensor:
