@@ -223,6 +223,14 @@ ODE1DData2_ = DataConfig(
     bc=BoundaryType.DIRICHLET_LEFT
 )
 
+DarcyFlow2D_Neumann = DataConfig(
+    pth="./datasets/darcy2D_n_uni.pt",
+    cheby_pth="./datasets/darcy2D_n_cgl.pt",
+    d=2,
+    o_d=1,
+    bc=BoundaryType.NEUMANN
+)
+
 class DataType(Enum):
     BURGERS = "burgers"
     BURGERS_PERIODIC = "burgers_p"
@@ -232,6 +240,7 @@ class DataType(Enum):
     DARCY_NEUMANN = "darcy_n"
     DARCY_NEUMANN_A = "darcy_n_a"
     DARCY = "darcy"
+    DARCY2D = "darcy2d"
     HELMHOLTZ = "helmholtz"
     HELMHOLTZ_2D= "helmholtz2D"
 
@@ -243,9 +252,7 @@ class DataType(Enum):
     ODE1D16="ode16"
     ODE1D32="ode32"
     ODE1D64="ode64"
-
-
-    ODE1D2_="ode2"
+    
 
 
 data_config_map: dict[DataType, DataConfig] = {
@@ -257,6 +264,7 @@ data_config_map: dict[DataType, DataConfig] = {
     DataType.DARCY_NEUMANN: DarcyNeumannData,
     DataType.DARCY_NEUMANN_A: DarcyNeumannAData,
     DataType.DARCY: DarcyData,
+    DataType.DARCY2D: DarcyFlow2D_Neumann,
     DataType.HELMHOLTZ: HelmholtzData,
     DataType.HELMHOLTZ_2D: Helmholtz2DData,
 
@@ -267,9 +275,6 @@ data_config_map: dict[DataType, DataConfig] = {
     DataType.ODE1D16: ODE1DData16,
     DataType.ODE1D32: ODE1DData32,
     DataType.ODE1D64: ODE1DData64,
-
-
-    DataType.ODE1D2_: ODE1DData2_,
 }
 
 def generate_grid(sizes: int | list[int], cheby: bool) -> torch.Tensor:
