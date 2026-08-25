@@ -49,25 +49,25 @@ class BPSPseudoSpectra(nn.Module):
     def __init__(self, in_channels, out_channels, v_modes, bandwidth, rank, bc: BoundaryType):
         super(BPSPseudoSpectra, self).__init__()
 
-        if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
-            self.x2phi = x2phi_dirichlet
-            self.phi2x = phi2x_dirichlet 
-        elif bc == BoundaryType.NEUMANN: 
-            self.x2phi = x2phi_neumann
-            self.phi2x = phi2x_neumann 
-        elif bc == BoundaryType.ROBIN:
-            # Assume robin values are a_l, b_l, a_r, b_r 
-            S_comp_to_cheb, S_cheb_to_comp = ch.get_square_robin_transforms(v_modes, a_L = 1.513, a_R=1.540, b_L=-1, b_R=1)
-            self.register_buffer('S_comp_to_cheb', S_comp_to_cheb)
-            self.register_buffer('S_cheb_to_comp', S_cheb_to_comp)
-            self.x2phi = functools.partial(ch.Wrapper, [ch.dct, lambda x: ch.cmp_robin_v(x, S_cheb_to_comp = self.S_cheb_to_comp)])
-            self.phi2x = functools.partial(ch.Wrapper, [lambda x: ch.icmp_robin_v(x, S_comp_to_cheb = self.S_comp_to_cheb), ch.idct])
-        elif bc == BoundaryType.DIRICHLET_LEFT:
-            self.x2phi = x2phi_dirichlet_left
-            self.phi2x = phi2x_dirichlet_left
-        else:
-            self.x2phi = dctn
-            self.phi2x = idctn 
+        # if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
+        #     self.x2phi = x2phi_dirichlet
+        #     self.phi2x = phi2x_dirichlet 
+        # elif bc == BoundaryType.NEUMANN: 
+        #     self.x2phi = x2phi_neumann
+        #     self.phi2x = phi2x_neumann 
+        # elif bc == BoundaryType.ROBIN:
+        #     # Assume robin values are a_l, b_l, a_r, b_r 
+        #     S_comp_to_cheb, S_cheb_to_comp = ch.get_square_robin_transforms(v_modes, a_L = 1.513, a_R=1.540, b_L=-1, b_R=1)
+        #     self.register_buffer('S_comp_to_cheb', S_comp_to_cheb)
+        #     self.register_buffer('S_cheb_to_comp', S_cheb_to_comp)
+        #     self.x2phi = functools.partial(ch.Wrapper, [ch.dct, lambda x: ch.cmp_robin_v(x, S_cheb_to_comp = self.S_cheb_to_comp)])
+        #     self.phi2x = functools.partial(ch.Wrapper, [lambda x: ch.icmp_robin_v(x, S_comp_to_cheb = self.S_comp_to_cheb), ch.idct])
+        # elif bc == BoundaryType.DIRICHLET_LEFT:
+        #     self.x2phi = x2phi_dirichlet_left
+        #     self.phi2x = phi2x_dirichlet_left
+        # else:
+        self.x2phi = dctn
+        self.phi2x = idctn 
 
 
         self.in_channels = in_channels
@@ -225,17 +225,17 @@ class BPSPseudoSpectra2d(nn.Module):
     def __init__(self, in_channels, out_channels, degree1, degree2, bandwidth, rank, bc: BoundaryType):
         super(BPSPseudoSpectra2d, self).__init__()
 
-        if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
-            self.x2phi = x2phi_dirichlet
-            self.phi2x = phi2x_dirichlet 
-        elif bc == BoundaryType.NEUMANN: 
-            self.x2phi = x2phi_neumann
-            self.phi2x = phi2x_neumann 
-        elif bc == BoundaryType.ROBIN:
-            raise NotImplementedError
-        else:
-            self.x2phi = dctn
-            self.phi2x = idctn 
+        # if bc == BoundaryType.DIRICHLET or bc == BoundaryType.PERIODIC:
+        #     self.x2phi = x2phi_dirichlet
+        #     self.phi2x = phi2x_dirichlet 
+        # elif bc == BoundaryType.NEUMANN: 
+        #     self.x2phi = x2phi_neumann
+        #     self.phi2x = phi2x_neumann 
+        # elif bc == BoundaryType.ROBIN:
+        #     raise NotImplementedError
+        # else:
+        self.x2phi = dctn
+        self.phi2x = idctn 
 
         self.in_channels = in_channels
         self.out_channels = out_channels

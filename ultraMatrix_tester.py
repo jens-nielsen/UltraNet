@@ -4,6 +4,7 @@ import json
 import numpy as np
 import scipy.sparse as sp
 import matplotlib.pyplot as plt
+
 import torch
 
 from src.models import NeuralOperatorModel, ModelType
@@ -129,7 +130,7 @@ def build_shen_ultraspherical_operator(a_func, N: int, num_a_modes: int = 32):
 if __name__ == "__main__":
 
     # Test problem: u'(x) + (x^2 + 1) u(x) = f(x),  x in (0, 1), u(0) = 0
-    poly=4
+    poly=64
     def a_fn(x):
         left_shift = 0.5
         return 1/(1+left_shift)**poly*((x+left_shift)**poly + (x+left_shift)**(poly-1))
@@ -188,14 +189,49 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load(f"./models/{model_name}.pt", map_location=torch.device('cpu')))
 
 
+    S0_param = torch.nn.Parameter(torch.tensor(S0[:, :N], dtype=torch.float32))
+
+    L_param = torch.nn.Parameter(torch.tensor(L, dtype=torch.float32))
+
+
+    test_loss = 0.0
+    for x, y in data.test_loader:
+        x_in = x[..., 0].flip(dims=[-1])
+        x_dct = dct(x_in)[..., :N]
+
+        x_cheb = torch.einsum("nm, bm -> bn", S0_param, x_dct)
+
+        out = torch.zeros(y.shape)
+        A = L_param
+        b = x_cheb.t()
+        u = torch.linalg.solve(A, b).t()
+
+        print(x_in.shape, x_dct.shape, u.shape)
+
+
+        out[:, :N] = u[..., None]
+        out = phi2x_dirichlet_left(out, 1).flip(dims=[1])
+
+        print(x.shape, y.shape, out.shape)
+        # plt.subplot(1, 4, 1, title="GT")
+        # plt.plot(x[0, ..., 1].detach().numpy(), y[0, ..., 0].detach().numpy())
+        # plt.subplot(1, 4, 2, title="USM")
+        # plt.plot(x[0, ..., 1].detach().numpy(), out[0, ..., 0].detach().numpy(), label="USM")
+        # plt.subplot(1, 4, 3, title="f(x)")
+        # plt.plot(x[0, ..., 1].detach().numpy(), x[0, ..., 0].detach().numpy(), label="f(x)")
+        # plt.show()
+
+        test_loss += loss(out, y).item()
+
+    print("{:.10f}".format(test_loss/(data.ntest*data.batch_size)))
+        
+
     f, u = next(iter(data.test_loader))
     f_i, u_i = f[0], u[0]
 
-    print(f[0, ..., 1])
     # 1. Flip f_i so index 0 corresponds to y = +1 (Right) for the DCT
     f_i_cgl = f_i[..., 0].flip(dims=[-1])
     f_c1 = S0[:, :N] @ np.array(dct(f_i_cgl)[:N])
-
 
     # 2. Solve system
     out = torch.zeros(f_i.shape[0])
@@ -203,10 +239,8 @@ if __name__ == "__main__":
 
     # 3. Evaluate solution and flip back to Left-to-Right (x = 0 -> 1)
     ultra_u = phi2x_dirichlet_left(out, 0).flip(dims=[-1])
-    print(torch.mean(torch.abs(ultra_u-u_i)))
     print(loss(ultra_u[None], u_i[None]))
 
-    import matplotlib.pyplot as plt
 
     plt.subplot(1, 4, 1, title="GT")
     plt.plot(f_i[..., 1], u_i)

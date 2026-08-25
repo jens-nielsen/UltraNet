@@ -47,5 +47,15 @@ class LpLoss(object):
 
         return diff_norms / y_norms
 
+    def rel_no_reduction(self, x, y): # Computes elementwise error for plotting purposes
+        num_examples = x.size()[0]
+
+        diff_norms = torch.norm(
+            x - y, self.p, -1
+        )
+        y_norms = torch.norm(y, self.p, -1)
+
+        return diff_norms / y_norms
+
     def __call__(self, x, y):
         return self.rel(x, y)
